@@ -177,14 +177,14 @@ The app reads files from a device that holds the owner's only copy of some of th
 
 Resolve these during milestones 1 to 3, and write the answers back into this doc.
 
-- [ ] The printer is an X1 series model. Which exact model (X1, X1 Carbon or X1E) and which firmware version? (Printer screen, or the discovery announcement.)
-- [ ] What is in `/timelapse/thumbnail/`: one image per video, and do the names match the videos?
-- [ ] What is in `/ipcam/`? Possibly camera recordings, which could be a later feature.
+- [ ] The printer is an X1 series model. Which exact model (X1, X1 Carbon or X1E) and which firmware version? (Printer screen, or the discovery announcement.) *The certificate CN gives the serial, prefix `00M`, which suggests X1 Carbon. The FTP greeting has no model token. Firmware is still unknown.*
+- [x] What is in `/timelapse/thumbnail/`: one image per video, and do the names match the videos? *Yes: one 11–18 KB JPEG per video with the same base name (2026-10-06, see docs/FINDINGS.md).*
+- [x] What is in `/ipcam/`? Possibly camera recordings, which could be a later feature. *Yes: ~250 MB five-minute `ipcam-record.*.mp4` segments plus an `index` file, ~10 GB in total (2026-10-06).*
 - [ ] What is inside a `.gcode.3mf`: where is the preview image, and is the original mesh included?
 - [ ] Do printers announce themselves over UDP multicast, and does the announcement include model code, name and serial? Capture one with a packet tool before writing the discovery module. Forum logs suggest the FTP greeting also carries a model-like token, which would be a fallback.
-- [ ] Is the timestamp in a timelapse filename the print start, and the file's modified time the end?
+- [ ] Is the timestamp in a timelapse filename the print start, and the file's modified time the end? *Consistent with it; the listing time looks like UTC and the filename like local time. Not yet confirmed against print history.*
 - [ ] Does listing or downloading during an active print cause any slowdown or disconnects?
-- [ ] Does the chosen FTPS library work against this printer without workarounds?
+- [x] Does the chosen FTPS library work against this printer without workarounds? *No. FluentFTP fails with `522 session reuse required` on macOS and Linux. A BouncyCastle-based client works (2026-10-06, see docs/FINDINGS.md).*
 
 ## Decisions needed from the owner
 
