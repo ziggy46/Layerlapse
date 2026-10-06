@@ -122,10 +122,10 @@ feature, but the files are large: download them only on request and never by def
 
 ### Listing and filename details
 
-- `/` has 180 entries (177 files, 3 directories: `certificate`, `ipcam`, `timelapse`) plus `verify_job`
-  (16 bytes). 9 names are non-ASCII and 6 are truncated with `...`. All 180 parse as UTF-8 without
+- `/` has 180 entries: 3 directories (`certificate`, `ipcam`, `timelapse`), `verify_job` (16 bytes) and
+  176 model files (174 `.gcode.3mf`, 2 plain `.3mf`). 9 names are non-ASCII and 6 are truncated with `...`. All 180 parse as UTF-8 without
   replacement characters, matching curl's line count exactly (printer test `Lists_root_with_unicode_names`).
-- `/timelapse/` has 74 videos (the plan said about 80), from 184 KB to about 57 MB.
+- `/timelapse/` has 74 videos (the plan said about 80), from 184,040 bytes to 56,776,595 bytes (`video_2026-09-12_22-39-03.mp4`).
 - The listing format is vsftpd `ls -l`: recent entries show `Mon DD HH:MM`, older ones `Mon DD  YYYY`.
   Owner and group are numeric (`1002`).
 
