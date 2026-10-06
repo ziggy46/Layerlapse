@@ -72,15 +72,15 @@ ffmpeg -v error -i bc/video_2026-05-13_11-25-16.mp4 -f null -   # decodes with n
 The extracted frame shows the print bed and toolhead. The same hash came from the Linux container.
 Timing on the LAN: connect plus login about 1.1 s, listing 75 entries about 80 ms, 184 KB download about 220 ms.
 
-### Which exact model and firmware? **Partly answered.**
+### Which exact model and firmware? **X1 Carbon, firmware 01.12.00.00.**
 
 - The TLS certificate's subject CN is the printer serial (`00M…`, 15 characters). It is issued by
   `C=CN, O=BBL Technologies Co., Ltd, CN=BBL CA` and valid from 2025-03-12 to 2035-03-10. Community serial
-  tables map the `00M` prefix to the **X1 Carbon**. That is a hint, not proof: confirm it on the printer
-  screen or from the discovery announcement in milestone 3.
+  tables map the `00M` prefix to the **X1 Carbon**. The UDP announcement confirms it (model code
+  `BL-P001`, see below).
 - The FTP greeting is just `220 (vsFTPd 3.0.5)`. **It does not contain a model token**, so the
   "model from FTP greeting" fallback in the plan does not work on this firmware.
-- Firmware version: not visible over FTPS. Still open.
+- Firmware version: not visible over FTPS. It is in the UDP announcement (see below): `01.12.00.00`.
 
 ```bash
 (sleep 3; printf 'QUIT\r\n') | openssl s_client -connect <printer-ip>:990 -showcerts > out.txt
@@ -133,10 +133,54 @@ feature, but the files are large: download them only on request and never by def
 - The listing format is vsftpd `ls -l`: recent entries show `Mon DD HH:MM`, older ones `Mon DD  YYYY`.
   Owner and group are numeric (`1002`).
 
+## 2026-10-06: network announcements (milestone 3 groundwork)
+
+### Do printers announce themselves over UDP, with model, name and serial? **Yes.**
+
+A passive 30-second listen (bind UDP 2021 and 1990, join 239.255.255.250, send nothing) received six
+452-byte SSDP-style `NOTIFY` packets from the printer, **one every 5 seconds, from and to port 2021**.
+Nothing arrived on 1990, even though the packet's `Host` header names port 1990.
+
+```
+NOTIFY * HTTP/1.1
+Host: 239.255.255.250:1990
+Server: UPnP/1.0
+Location: <printer-ip>
+NT: urn:bambulab-com:device:3dprinter:1
+NTS: ssdp:alive
+USN: 00M…                         (serial; identical to the TLS certificate CN)
+Cache-Control: max-age=1800
+DevModel.bambu.com: BL-P001       (model code)
+DevName.bambu.com: X1 Carbon      (printer name, user-editable in Bambu apps)
+DevSignal.bambu.com: -40          (Wi-Fi RSSI; varied -39 to -41, the only field that changed)
+DevConnect.bambu.com: cloud
+DevBind.bambu.com: occupied
+Devseclink.bambu.com: secure
+DevInf.bambu.com: wlan0
+DevVersion.bambu.com: 01.12.00.00 (firmware)
+DevCap.bambu.com: 1
+```
+
+```bash
+python3 listen.py   # bind ("", 2021) and ("", 1990), IP_ADD_MEMBERSHIP 239.255.255.250, select() for 30 s, print payloads
+```
+
+Notes for the discovery module:
+
+- Everything the setup screen needs is in one packet: IP (`Location`), serial (`USN`), model code
+  (`DevModel`), name (`DevName`) and firmware (`DevVersion`). No login is needed.
+- `DevName` is the printer's name, not its model. It reads "X1 Carbon" here because that is the default
+  name, so map the model from `DevModel` instead. `BL-P001` = X1 Carbon matches community tables and the
+  `00M` serial prefix. Codes for other models are still unverified.
+- Listen on UDP 2021. Re-announcing every 5 s means a 6–10 s listen is enough; `max-age=1800` means
+  a printer can be treated as gone after missing announcements for a while.
+- The Python process received the packets without a macOS Local Network prompt. A bundled app may still
+  trigger one, as the plan warns.
+- The USN serial equals the certificate CN, so a printer found by the port 990 fallback can be matched
+  to a discovered one by serial.
+
 ## Still open
 
-- Exact model (confirm the X1 Carbon hint) and firmware version: milestone 3, or the printer screen.
-- UDP multicast announcement contents: milestone 3.
 - What is inside a `.gcode.3mf`: milestone 6.
 - Whether listing or downloading during an active print causes slowdown or disconnects: not tested. The
   printer's state during these runs is unknown.
