@@ -18,7 +18,7 @@ Build **Layerlapse**, a cross-platform desktop app for macOS, Windows and Linux 
 
 **Stack (decided)**
 
-.NET (current LTS) with Avalonia UI and MVVM, FluentFTP for implicit FTPS, LibVLCSharp for playback (fallback: open the file in the OS default player), xUnit for tests.
+.NET (current LTS) with Avalonia UI and MVVM, BouncyCastle.Cryptography (managed TLS 1.2 with session resumption) plus a small read-only FTP client in Core for implicit FTPS, LibVLCSharp for playback (fallback: open the file in the OS default player), xUnit for tests.
 
 **Repository layout**
 
@@ -68,12 +68,12 @@ Build a downloadable desktop app, not a hosted web app. Browsers cannot open raw
 **Suggested stack (desktop)**
 
 - .NET with Avalonia for the UI on macOS, Windows and Linux
-- FluentFTP for implicit FTPS, with custom certificate validation
+- BouncyCastle TLS plus a minimal FTP client for implicit FTPS, with certificate pinning (FluentFTP was tried and cannot reuse TLS sessions, which the printer requires; see docs/FINDINGS.md)
 - A discovery module using UDP multicast, with a TCP fallback (see Architecture)
 - LibVLCSharp, or the OS default player, for playback
 - The OS credential store for the access code
 
-Decided on 2026-10-06: build the desktop app in C# with Avalonia, starting with the FTPS spike in milestone 1. The printer facts and gotchas below apply to any stack.
+Decided on 2026-10-06: build the desktop app in C# with Avalonia, starting with the FTPS spike in milestone 1. Also decided on 2026-10-06, after the spike: use BouncyCastle instead of FluentFTP. The printer facts and gotchas below apply to any stack.
 
 ## Verified printer facts
 

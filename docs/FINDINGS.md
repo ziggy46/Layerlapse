@@ -27,8 +27,12 @@ FluentFTP has no setting for this. Its `FluentFTP.GnuTLS` add-on can resume sess
 GnuTLS DLLs for Windows only, so macOS and Linux users would need GnuTLS installed separately.
 
 ```bash
+git checkout f4db283   # last commit with the FluentFTP client
 dotnet run --project tools/Layerlapse.Spike -- --library fluentftp <out-dir>   # 522 on LIST
 ```
+
+**Decision (2026-10-06):** use BouncyCastle. FluentFTP and its client were removed from Core after
+commit `f4db283`.
 
 **What works instead:** `BambuFtpsClient` in Core, which uses BouncyCastle's managed TLS (pure C#, no
 native code) plus a minimal read-only FTP layer (USER, PASS, PBSZ, PROT P, TYPE I, PASV, LIST, RETR, QUIT).
@@ -36,7 +40,7 @@ Each data connection resumes the control session, and the client checks that the
 It works on macOS and Linux:
 
 ```bash
-dotnet run --project tools/Layerlapse.Spike -- --library bc <out-dir>
+dotnet run --project tools/Layerlapse.Spike -- <out-dir>
 dotnet test --filter Category=Printer      # 4 printer tests, all pass with LAYERLAPSE_* set
 ```
 
@@ -56,7 +60,7 @@ curl -v -sS -k --ftp-ssl-control -u "bblp:$LAYERLAPSE_CODE" "ftps://<printer-ip>
 Smallest video, `video_2026-05-13_11-25-16.mp4`, 184,040 bytes:
 
 ```bash
-dotnet run --project tools/Layerlapse.Spike -- --library bc bc/
+dotnet run --project tools/Layerlapse.Spike -- bc/
 curl -sS -k -u "bblp:$LAYERLAPSE_CODE" "ftps://<printer-ip>:990/timelapse/video_2026-05-13_11-25-16.mp4" -o curl/video.mp4
 shasum -a 256 bc/video_2026-05-13_11-25-16.mp4 curl/video.mp4
 # cbcc010b3234e71502ce9870307d1ed42b02e23b1063552a84f540744b7a72c3 (both)

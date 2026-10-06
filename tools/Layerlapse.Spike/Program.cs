@@ -1,8 +1,6 @@
 // Milestone 1 spike: connect over implicit FTPS, list /timelapse/, download the smallest video.
 // Read-only. Reads LAYERLAPSE_IP and LAYERLAPSE_CODE; never prints the code.
-// Usage: dotnet run --project tools/Layerlapse.Spike -- [--library bc|fluentftp] <output-folder>
-//   bc (default): BambuFtpsClient, BouncyCastle TLS with session resumption.
-//   fluentftp:    FtpsPrinterClient, kept to reproduce the 522 "session reuse required" failure.
+// Usage: dotnet run --project tools/Layerlapse.Spike -- <output-folder>
 using System.Diagnostics;
 using System.Security.Cryptography;
 using Layerlapse.Core.Printers;
@@ -15,35 +13,16 @@ if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(code))
     return 2;
 }
 
-var library = "bc";
-var rest = new List<string>(args);
-var flag = rest.IndexOf("--library");
-if (flag >= 0 && flag + 1 < rest.Count)
-{
-    library = rest[flag + 1];
-    rest.RemoveRange(flag, 2);
-}
-
-var outDir = rest.Count > 0 ? rest[0] : Path.Combine(Path.GetTempPath(), "layerlapse-spike");
+var outDir = args.Length > 0 ? args[0] : Path.Combine(Path.GetTempPath(), "layerlapse-spike");
 Directory.CreateDirectory(outDir);
 
-var connection = new PrinterConnection(host, code);
-await using IPrinterClient client = library switch
-{
-    "fluentftp" => new FtpsPrinterClient(connection),
-    "bc" => new BambuFtpsClient(connection),
-    _ => throw new ArgumentException($"Unknown library '{library}'."),
-};
-Console.WriteLine($"Library: {library}");
+await using var client = new BambuFtpsClient(new PrinterConnection(host, code));
 
 var sw = Stopwatch.StartNew();
 await client.ConnectAsync();
 Console.WriteLine($"Connected in {sw.ElapsedMilliseconds} ms");
 Console.WriteLine($"Certificate SHA-256: {client.CertificateFingerprint}");
-if (client is BambuFtpsClient bambu)
-{
-    Console.WriteLine($"Greeting: {bambu.Greeting}");
-}
+Console.WriteLine($"Greeting: {client.Greeting}");
 
 foreach (var folder in new[] { "/timelapse/thumbnail/", "/ipcam/" })
 {
