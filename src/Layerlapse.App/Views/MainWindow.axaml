@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Layerlapse.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="960" d:DesignHeight="600"
+        x:Class="Layerlapse.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Width="960" Height="600" MinWidth="640" MinHeight="400"
+        Background="{DynamicResource BackgroundBrush}"
+        Foreground="{DynamicResource TextBrush}"
+        Title="Layerlapse">
+
+  <Design.DataContext>
+    <vm:MainViewModel />
+  </Design.DataContext>
+
+  <Grid ColumnDefinitions="220,*">
+
+    <!-- Sidebar: printer picker, Timelapses, Models (placeholders until later milestones). -->
+    <Border Grid.Column="0"
+            Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource LineBrush}"
+            BorderThickness="0,0,1,0">
+      <DockPanel Margin="12">
+        <StackPanel DockPanel.Dock="Top" Spacing="2">
+          <TextBlock Text="Layerlapse" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
+          <TextBlock Text="No printer" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12" />
+          <ListBox SelectedIndex="0" Background="Transparent">
+            <ListBoxItem Content="Timelapses" />
+            <ListBoxItem Content="Models" />
+          </ListBox>
+        </StackPanel>
+        <ToggleSwitch DockPanel.Dock="Bottom" VerticalAlignment="Bottom"
+                      IsChecked="{Binding IsLightTheme}"
+                      OnContent="Light" OffContent="Dark" />
+      </DockPanel>
+    </Border>
+
+    <!-- Content -->
+    <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="4">
+      <TextBlock Text="No printer connected" FontSize="14" HorizontalAlignment="Center" />
+      <TextBlock Text="Unofficial app. Not affiliated with Bambu Lab."
+                 Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+    </StackPanel>
+
+  </Grid>
+</Window>

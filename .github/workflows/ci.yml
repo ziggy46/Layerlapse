@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore Layerlapse.sln
+      - run: dotnet build Layerlapse.sln --configuration Release --no-restore
+      # Printer tests skip themselves: LAYERLAPSE_IP and LAYERLAPSE_CODE are never set in CI.
+      - run: dotnet test Layerlapse.sln --configuration Release --no-build
