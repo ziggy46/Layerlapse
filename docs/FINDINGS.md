@@ -499,6 +499,9 @@ on when the certificate secrets listed in the workflow are added.
   `hdiutil verify` VALID, bundle id `app.layerlapse.Layerlapse`, version 0.7.0, the Local Network
   description, ad-hoc signed, and no `DevEnvFileCredentialStore` in the Release DLL.
 - Windows and Linux packaging and the GitHub release job had not run before the repository was published.
+- **First CI run (2026-10-07, after publishing to github.com/ziggy46/Layerlapse):** the `CI` workflow built the
+  solution and ran the tests on `macos-latest`, `windows-latest` and `ubuntu-latest`, all green (run
+  37645369559). This is the first build on Windows and Linux. Printer and credential-store tests skip in CI.
 - With ad-hoc signing, every new version has a different code signature, so macOS asks for Keychain access
   again after each update. A Developer ID certificate fixes this.
 
