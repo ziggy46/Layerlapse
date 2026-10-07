@@ -24,6 +24,29 @@
       </Grid>
     </Border>
 
+    <!-- Selection and downloads -->
+    <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="20,8"
+            Background="{DynamicResource PanelBrush}">
+      <StackPanel Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Select all" Command="{Binding SelectAllCommand}" />
+          <Button Content="Clear selection" Command="{Binding ClearSelectionCommand}" IsVisible="{Binding HasSelection}" />
+          <Button Classes="accent" Content="{Binding DownloadSelectedLabel}" Command="{Binding DownloadSelectedCommand}"
+                  IsVisible="{Binding HasSelection}" FontWeight="Bold" FontSize="14" />
+        </StackPanel>
+        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowDownloadBar}">
+          <StackPanel Spacing="4" VerticalAlignment="Center">
+            <TextBlock Text="{Binding DownloadText}" FontSize="12" TextWrapping="Wrap" />
+            <ProgressBar Value="{Binding DownloadPercent}" Maximum="100" IsVisible="{Binding IsDownloading}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
+            <Button Content="Cancel" Command="{Binding CancelDownloadsCommand}" IsVisible="{Binding IsDownloading}" />
+            <Button Content="Show folder" Command="{Binding RevealFolderCommand}" IsVisible="{Binding CanRevealFolder}" />
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+    </Border>
+
     <Panel>
       <!-- No timelapses at all -->
       <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420" Spacing="6">
@@ -53,15 +76,26 @@
                 <StackPanel>
                   <Panel Height="124" Background="{DynamicResource PanelBrush}">
                     <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+                    <Border Background="{DynamicResource CardBrush}" CornerRadius="4" Margin="6" Padding="2"
+                            HorizontalAlignment="Left" VerticalAlignment="Top">
+                      <CheckBox IsChecked="{Binding IsSelected}" MinWidth="0" Padding="0" ToolTip.Tip="Select for download" />
+                    </Border>
                   </Panel>
                   <StackPanel Margin="10,8,10,10" Spacing="2">
                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                ToolTip.Tip="Duration is approximate: the file's last change minus the start time in its name." />
                     <ProgressBar Value="{Binding Progress}" Maximum="100" Margin="0,6,0,0" IsVisible="{Binding IsDownloading}" />
-                    <Button Content="Play" Margin="0,6,0,0"
-                            Command="{Binding $parent[ItemsControl].((vm:TimelapsesViewModel)DataContext).PlayCommand}"
-                            CommandParameter="{Binding}" IsEnabled="{Binding IsIdle}" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0">
+                      <Button Content="Play"
+                              Command="{Binding $parent[ItemsControl].((vm:TimelapsesViewModel)DataContext).PlayCommand}"
+                              CommandParameter="{Binding}" IsEnabled="{Binding IsIdle}" />
+                      <Button Content="Download"
+                              Command="{Binding $parent[ItemsControl].((vm:TimelapsesViewModel)DataContext).DownloadOneCommand}"
+                              CommandParameter="{Binding}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding DownloadStatus}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
+                               IsVisible="{Binding DownloadStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
                     <TextBlock Text="{Binding Error}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource DangerBrush}"
                                IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
                   </StackPanel>

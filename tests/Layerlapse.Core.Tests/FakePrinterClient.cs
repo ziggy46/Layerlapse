@@ -31,6 +31,15 @@ internal sealed class FakePrinter
     /// <summary>Thrown by the next download, then cleared.</summary>
     public Exception? NextDownloadFailure { get; set; }
 
+    /// <summary>Each value drops one transfer after that many bytes of the file (a lost connection).</summary>
+    public Queue<long> DropsAtByte { get; } = new();
+
+    /// <summary>Restart offsets requested, in order (0 for a fresh download).</summary>
+    public List<long> RestartOffsets { get; } = [];
+
+    /// <summary>Bytes actually sent over all transfers.</summary>
+    public long BytesSent { get; private set; }
+
     public void AddFile(string path, int size, DateTime modifiedUtc) =>
         Files[path] = new FakeFile(Enumerable.Range(0, size).Select(i => (byte)(i * 7)).ToArray(), modifiedUtc);
 
@@ -95,7 +104,10 @@ internal sealed class FakePrinter
             return Task.FromResult(printer.Files.TryGetValue(remotePath, out var file) ? file.ModifiedUtc : (DateTime?)null);
         }
 
-        public async Task DownloadAsync(string remotePath, string localPath, IProgress<long>? progress = null, CancellationToken cancellationToken = default)
+        public Task DownloadAsync(string remotePath, string localPath, IProgress<long>? progress = null, CancellationToken cancellationToken = default) =>
+            DownloadAsync(remotePath, localPath, 0, progress, cancellationToken);
+
+        public async Task DownloadAsync(string remotePath, string localPath, long resumeFrom, IProgress<long>? progress = null, CancellationToken cancellationToken = default)
         {
             if (printer.NextDownloadFailure is { } failure)
             {
@@ -109,8 +121,26 @@ internal sealed class FakePrinter
             }
 
             printer.Downloads++;
-            await File.WriteAllBytesAsync(localPath, file.Data, cancellationToken);
-            progress?.Report(file.Data.Length);
+            printer.RestartOffsets.Add(resumeFrom);
+            await using var stream = new FileStream(localPath, resumeFrom > 0 ? FileMode.OpenOrCreate : FileMode.Create, FileAccess.Write);
+            stream.SetLength(resumeFrom);
+            stream.Seek(resumeFrom, SeekOrigin.Begin);
+            var end = printer.DropsAtByte.Count > 0 ? Math.Min(printer.DropsAtByte.Dequeue(), file.Data.Length) : file.Data.Length;
+            for (var position = resumeFrom; position < file.Data.Length; position += 100)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var chunk = (int)Math.Min(100, file.Data.Length - position);
+                if (position + chunk > end)
+                {
+                    await stream.WriteAsync(file.Data.AsMemory((int)position, (int)(end - position)), cancellationToken);
+                    printer.BytesSent += end - position;
+                    throw new IOException("The printer closed the connection.");
+                }
+
+                await stream.WriteAsync(file.Data.AsMemory((int)position, chunk), cancellationToken);
+                printer.BytesSent += chunk;
+                progress?.Report(position + chunk);
+            }
         }
 
         private static DateTime TruncateToMinute(DateTime t) => new(t.Ticks - (t.Ticks % TimeSpan.TicksPerMinute), DateTimeKind.Utc);

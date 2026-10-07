@@ -23,14 +23,27 @@ public partial class MainViewModel : ViewModelBase
     private readonly PrinterSetupService? _setup;
     private readonly Func<string, TimelapseCache> _cacheFactory;
     private readonly IVideoPlayer _player;
+    private readonly Func<string?, Task<string?>>? _pickFolder;
+    private readonly JsonSettingsStore? _settings;
+    private readonly Action<string>? _revealFolder;
     private string? _attachedHost;
 
-    public MainViewModel(ConnectionViewModel connection, PrinterSetupService? setup = null, Func<string, TimelapseCache>? cacheFactory = null, IVideoPlayer? player = null)
+    public MainViewModel(
+        ConnectionViewModel connection,
+        PrinterSetupService? setup = null,
+        Func<string, TimelapseCache>? cacheFactory = null,
+        IVideoPlayer? player = null,
+        Func<string?, Task<string?>>? pickFolder = null,
+        JsonSettingsStore? settings = null,
+        Action<string>? revealFolder = null)
     {
         Connection = connection;
         _setup = setup;
         _cacheFactory = cacheFactory ?? TimelapseCache.ForPrinter;
         _player = player ?? new DefaultAppVideoPlayer();
+        _pickFolder = pickFolder;
+        _settings = settings;
+        _revealFolder = revealFolder;
         Connection.PropertyChanged += OnConnectionChanged;
     }
 
@@ -152,7 +165,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         await CloseTimelapsesAsync();
-        Timelapses = new TimelapsesViewModel(printerId, _cacheFactory(printerId), _player);
+        Timelapses = new TimelapsesViewModel(printerId, _cacheFactory(printerId), _player, _pickFolder, _settings, _revealFolder);
         await Timelapses.LoadCachedAsync();
     }
 

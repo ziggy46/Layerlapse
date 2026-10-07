@@ -3,6 +3,7 @@ using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Layerlapse.Core.Printers;
+using Layerlapse.Core.Setup;
 using Layerlapse.Core.Timelapses;
 
 namespace Layerlapse.App.ViewModels;
@@ -11,9 +12,16 @@ namespace Layerlapse.App.ViewModels;
 /// The timelapse grid for one printer. Shows the cached listing immediately, refreshes once connected,
 /// fills in thumbnails in the background, and plays a video by downloading it to the cache first.
 /// </summary>
-public partial class TimelapsesViewModel(string printerId, TimelapseCache cache, IVideoPlayer player) : ViewModelBase, IAsyncDisposable
+public partial class TimelapsesViewModel(
+    string printerId,
+    TimelapseCache cache,
+    IVideoPlayer player,
+    Func<string?, Task<string?>>? pickFolder = null,
+    JsonSettingsStore? settings = null,
+    Action<string>? revealFolder = null) : ViewModelBase, IAsyncDisposable
 {
     private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _downloads;
     private List<TimelapseItemViewModel> _all = [];
     private PrinterSession? _session;
     private TimelapseLibrary? _library;
@@ -66,6 +74,188 @@ public partial class TimelapsesViewModel(string printerId, TimelapseCache cache,
     }
 
     public bool IsFiltered => From is not null || To is not null;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelection), nameof(DownloadSelectedLabel))]
+    [NotifyCanExecuteChangedFor(nameof(DownloadSelectedCommand))]
+    public partial int SelectedCount { get; private set; }
+
+    public bool HasSelection => SelectedCount > 0;
+
+    public string DownloadSelectedLabel => SelectedCount == 1 ? "Download 1 timelapse" : $"Download {SelectedCount} timelapses";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DownloadSelectedCommand), nameof(DownloadOneCommand), nameof(CancelDownloadsCommand))]
+    [NotifyPropertyChangedFor(nameof(ShowDownloadBar))]
+    public partial bool IsDownloading { get; private set; }
+
+    /// <summary>"Downloading 2 of 5 · 42.1 of 120.3 MB" while running; the summary afterwards.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowDownloadBar))]
+    public partial string? DownloadText { get; private set; }
+
+    /// <summary>0–100 across the whole batch.</summary>
+    [ObservableProperty]
+    public partial double DownloadPercent { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRevealFolder))]
+    public partial string? LastDownloadFolder { get; private set; }
+
+    public bool CanRevealFolder => !IsDownloading && LastDownloadFolder is not null && revealFolder is not null;
+
+    public bool ShowDownloadBar => IsDownloading || DownloadText is not null;
+
+    [RelayCommand]
+    private void SelectAll()
+    {
+        foreach (var item in Items)
+        {
+            item.IsSelected = true;
+        }
+    }
+
+    [RelayCommand]
+    private void ClearSelection()
+    {
+        foreach (var item in _all)
+        {
+            item.IsSelected = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDownloadSelected))]
+    private Task DownloadSelectedAsync() => DownloadAsync(_all.Where(i => i.IsSelected).ToList());
+
+    [RelayCommand(CanExecute = nameof(CanDownloadOne))]
+    private Task DownloadOneAsync(TimelapseItemViewModel item) => DownloadAsync([item]);
+
+    [RelayCommand(CanExecute = nameof(IsDownloading))]
+    private void CancelDownloads() => _downloads?.Cancel();
+
+    [RelayCommand]
+    private void RevealFolder()
+    {
+        if (LastDownloadFolder is { } folder)
+        {
+            revealFolder?.Invoke(folder);
+        }
+    }
+
+    private bool CanDownloadSelected() => SelectedCount > 0 && !IsDownloading;
+
+    private bool CanDownloadOne() => !IsDownloading;
+
+    /// <summary>Asks where to save, then downloads one file at a time with progress, skipping files already there.</summary>
+    private async Task DownloadAsync(IReadOnlyList<TimelapseItemViewModel> items)
+    {
+        if (items.Count == 0 || pickFolder is null)
+        {
+            return;
+        }
+
+        if (_session is null)
+        {
+            DownloadText = "Connect to the printer to download.";
+            return;
+        }
+
+        var saved = settings is null ? new AppSettings() : await settings.LoadAsync();
+        var suggested = saved.LastDownloadFolder ?? LastDownloadFolder;
+        var folder = await pickFolder(suggested);
+        if (folder is null)
+        {
+            return;
+        }
+
+        if (settings is not null)
+        {
+            await settings.SaveAsync(saved with { LastDownloadFolder = folder });
+        }
+
+        _downloads = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        IsDownloading = true;
+        LastDownloadFolder = folder;
+        DownloadPercent = 0;
+        foreach (var item in items)
+        {
+            item.DownloadStatus = "Waiting…";
+        }
+
+        var byName = items.ToDictionary(i => i.Timelapse.Name);
+        var finished = false;
+        var progress = new Progress<DownloadProgress>(p =>
+        {
+            // Progress<T> posts reports asynchronously; ignore any that arrive after the summary is shown.
+            if (finished)
+            {
+                return;
+            }
+
+            DownloadPercent = p.BatchSize == 0 ? 100 : p.BatchBytes * 100d / p.BatchSize;
+            DownloadText = $"Downloading {p.Index + 1} of {p.Count} · {TimelapseItemViewModel.FormatSize(p.BatchBytes)} of {TimelapseItemViewModel.FormatSize(p.BatchSize)}";
+            if (byName.TryGetValue(p.Current.Name, out var current) && p.FileBytes < p.Current.Size)
+            {
+                current.DownloadStatus = $"Downloading… {p.FileBytes * 100 / Math.Max(1, p.Current.Size)}%";
+            }
+        });
+
+        try
+        {
+            var results = await new TimelapseDownloader(_session, cache).DownloadAsync(items.Select(i => i.Timelapse).ToList(), folder, progress, _downloads.Token);
+            finished = true;
+            foreach (var result in results)
+            {
+                byName[result.Timelapse.Name].DownloadStatus = Describe(result);
+            }
+
+            DownloadText = Summarize(results);
+            if (results.All(r => r.Outcome is not (DownloadOutcome.Failed or DownloadOutcome.Cancelled)))
+            {
+                ClearSelection();
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            finished = true;
+            DownloadText = "Download failed: " + e.Message;
+        }
+        finally
+        {
+            finished = true;
+            IsDownloading = false;
+            OnPropertyChanged(nameof(CanRevealFolder));
+        }
+    }
+
+    private static string Describe(DownloadResult result) => result.Outcome switch
+    {
+        DownloadOutcome.Downloaded when result.ResumedFrom > 0 => "Saved (continued from an earlier download)",
+        DownloadOutcome.Downloaded or DownloadOutcome.CopiedFromCache => "Saved",
+        DownloadOutcome.SkippedExisting => "Already in the folder",
+        DownloadOutcome.SkippedConflict => "Skipped: a different file with this name is in the folder",
+        DownloadOutcome.Cancelled => "Cancelled. Download again to continue where it stopped.",
+        _ => "Failed: " + result.Error,
+    };
+
+    private static string Summarize(IReadOnlyList<DownloadResult> results)
+    {
+        var parts = new List<string>();
+        void Add(int count, string text)
+        {
+            if (count > 0)
+            {
+                parts.Add($"{count} {text}");
+            }
+        }
+
+        Add(results.Count(r => r.Outcome is DownloadOutcome.Downloaded or DownloadOutcome.CopiedFromCache), "saved");
+        Add(results.Count(r => r.Outcome == DownloadOutcome.SkippedExisting), "already in the folder");
+        Add(results.Count(r => r.Outcome == DownloadOutcome.SkippedConflict), "skipped (name in use)");
+        Add(results.Count(r => r.Outcome == DownloadOutcome.Failed), "failed");
+        Add(results.Count(r => r.Outcome == DownloadOutcome.Cancelled), "cancelled");
+        return string.Join(" · ", parts);
+    }
 
     partial void OnFromChanged(DateTime? value) => ApplyFilter();
 
@@ -186,6 +376,7 @@ public partial class TimelapsesViewModel(string printerId, TimelapseCache cache,
 
     public async ValueTask DisposeAsync()
     {
+        _downloads?.Cancel();
         _lifetime.Cancel();
         _thumbnails?.Cancel();
         if (_session is not null)
@@ -200,12 +391,20 @@ public partial class TimelapsesViewModel(string printerId, TimelapseCache cache,
     {
         var existing = _all.ToDictionary(i => i.Timelapse.Name);
         _all = listing.Timelapses
-            .Select(t => existing.TryGetValue(t.Name, out var item) && item.Timelapse == t ? item : new TimelapseItemViewModel(t) { Thumbnail = existing.GetValueOrDefault(t.Name)?.Thumbnail })
+            .Select(t => existing.TryGetValue(t.Name, out var item) && item.Timelapse == t ? item : NewItem(t, existing.GetValueOrDefault(t.Name)))
             .ToList();
+        SelectedCount = _all.Count(i => i.IsSelected);
         TotalCount = _all.Count;
         HasLoaded = true;
         ApplyFilter();
         _ = LoadThumbnailsAsync();
+    }
+
+    private TimelapseItemViewModel NewItem(Timelapse timelapse, TimelapseItemViewModel? previous)
+    {
+        var item = new TimelapseItemViewModel(timelapse) { Thumbnail = previous?.Thumbnail, IsSelected = previous?.IsSelected ?? false };
+        item.SelectionChanged += (_, _) => SelectedCount = _all.Count(i => i.IsSelected);
+        return item;
     }
 
     private void ApplyFilter()

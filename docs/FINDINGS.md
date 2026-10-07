@@ -344,6 +344,38 @@ one of: libvlc and its plugins taken from VLC's own universal macOS app and pack
 decoder drawing frames into the window; or each OS's own video API (AVFoundation, Windows Media, GStreamer).
 Each adds native code or packaging work per platform.
 
+## 2026-10-07: milestone 5 (download)
+
+### Acceptance: an interrupted 50 MB download resumes instead of restarting. **Yes.**
+
+Printer test `TimelapseDownloaderPrinterTests.Interrupted_large_download_resumes_instead_of_restarting`
+(opt-in: `LAYERLAPSE_HEAVY_TESTS=1`), on the largest timelapse `video_2026-09-12_22-39-03.mp4`
+(56,776,595 bytes), printer idle (no camera recording since 2026-10-05):
+
+| Interruption | Result |
+| --- | --- |
+| Connection broken abruptly at 20 MB | Reconnected by itself and continued with `REST 20971520`; 56,776,595 bytes transferred in total for the 56,776,595-byte file, so nothing was downloaded twice; 38.9 s |
+| Cancelled by the user at 35 MB, then downloaded again | The `.part` file (36,700,160 bytes) was kept and the second download continued from exactly there |
+
+Both results have SHA-256 `1F3AFF4D…D34F9EF`, the same as an independent `curl` download of the file.
+
+```bash
+LAYERLAPSE_HEAVY_TESTS=1 dotnet test --filter "FullyQualifiedName~Interrupted_large"
+curl -sS -k -u "bblp:$LAYERLAPSE_CODE" "ftps://<printer-ip>:990/timelapse/video_2026-09-12_22-39-03.mp4" -o ref.mp4 && shasum -a 256 ref.mp4
+```
+
+### Other findings
+
+- **The printer accepts `REST` in binary mode** (vsftpd replies `350`). The client sends it after `PASV` and
+  directly before `RETR`.
+- **Transfer speed is about 1.5 MB/s, limited by the printer**: curl took 37.8 s for the same 56.8 MB file
+  that Layerlapse fetched in 38.9 s.
+- **How downloads behave:** files already in the folder with the same size are skipped; a different file with
+  the same name is never overwritten; partial files are `<name>.part` and renamed when complete; a dropped
+  connection is retried up to 5 times (waiting 1, 2, 4 and 8 s); a "550 not found" is not retried; a video
+  already in the play cache is copied instead of downloaded. The folder is chosen each time with the system
+  folder picker, starting at the last folder used (else Downloads), remembered in `settings.json`.
+
 ## Still open
 
 - What is inside a `.gcode.3mf`: milestone 6.

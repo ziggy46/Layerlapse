@@ -29,4 +29,15 @@ public interface IPrinterClient : IAsyncDisposable
         string localPath,
         IProgress<long>? progress = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Continues a download: keeps the first <paramref name="resumeFrom"/> bytes of <paramref name="localPath"/>
+    /// and appends the rest (FTP REST). Progress reports the file's total bytes, including the kept part.
+    /// </summary>
+    Task DownloadAsync(
+        string remotePath,
+        string localPath,
+        long resumeFrom,
+        IProgress<long>? progress = null,
+        CancellationToken cancellationToken = default);
 }

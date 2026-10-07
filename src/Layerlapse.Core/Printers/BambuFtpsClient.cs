@@ -107,14 +107,30 @@ public sealed partial class BambuFtpsClient : IPrinterClient
             : null;
     }
 
-    public async Task DownloadAsync(
+    public Task DownloadAsync(
         string remotePath,
         string localPath,
         IProgress<long>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        DownloadAsync(remotePath, localPath, 0, progress, cancellationToken);
+
+    public async Task DownloadAsync(
+        string remotePath,
+        string localPath,
+        long resumeFrom,
+        IProgress<long>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        await using var file = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
-        await TransferAsync($"RETR {CheckPath(remotePath)}", file, progress, cancellationToken);
+        ArgumentOutOfRangeException.ThrowIfNegative(resumeFrom);
+        await using var file = new FileStream(localPath, resumeFrom > 0 ? FileMode.OpenOrCreate : FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+        if (resumeFrom > 0)
+        {
+            // Keep exactly the bytes already received, then ask the printer to continue from there.
+            file.SetLength(resumeFrom);
+            file.Seek(resumeFrom, SeekOrigin.Begin);
+        }
+
+        await TransferAsync($"RETR {CheckPath(remotePath)}", file, progress, cancellationToken, restartAt: resumeFrom);
     }
 
     public async ValueTask DisposeAsync()
@@ -136,13 +152,19 @@ public sealed partial class BambuFtpsClient : IPrinterClient
         _controlSocket?.Dispose();
     }
 
-    private async Task TransferAsync(string command, Stream destination, IProgress<long>? progress, CancellationToken cancellationToken)
+    private async Task TransferAsync(string command, Stream destination, IProgress<long>? progress, CancellationToken cancellationToken, long restartAt = 0)
     {
         var pasv = (await CommandAsync("PASV", cancellationToken)).Expect(227);
         var port = ParsePasvPort(pasv);
 
         // Connect to the control connection's address, never the one the server advertises.
         using var dataSocket = await OpenSocketAsync(port, cancellationToken);
+        if (restartAt > 0)
+        {
+            // REST goes directly before the transfer command it applies to.
+            (await CommandAsync($"REST {restartAt}", cancellationToken)).Expect(350);
+        }
+
         await WriteLineAsync(command, cancellationToken);
 
         // vsftpd answers 150 before it starts TLS on the data connection, so read the reply first and only then
@@ -163,7 +185,7 @@ public sealed partial class BambuFtpsClient : IPrinterClient
         }
 
         var buffer = new byte[81920];
-        long total = 0;
+        var total = restartAt;
         var stream = dataTls.Stream;
         while (true)
         {

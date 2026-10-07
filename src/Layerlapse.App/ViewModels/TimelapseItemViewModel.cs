@@ -8,6 +8,18 @@ namespace Layerlapse.App.ViewModels;
 /// <summary>One card in the timelapse grid.</summary>
 public partial class TimelapseItemViewModel(Timelapse timelapse) : ViewModelBase
 {
+    /// <summary>Raised when the checkbox changes, so the grid can update its selection count.</summary>
+    public event EventHandler? SelectionChanged;
+
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; }
+
+    /// <summary>Result of the last download of this card ("Saved", "Already in the folder", ...).</summary>
+    [ObservableProperty]
+    public partial string? DownloadStatus { get; set; }
+
+    partial void OnIsSelectedChanged(bool value) => SelectionChanged?.Invoke(this, EventArgs.Empty);
+
     public Timelapse Timelapse { get; } = timelapse;
 
     /// <summary>Start time exactly as the printer recorded it.</summary>
