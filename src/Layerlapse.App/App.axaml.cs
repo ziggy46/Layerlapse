@@ -25,11 +25,16 @@ public partial class App : Application
     {
 #if DEBUG
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { Args: { } args } playerOnly
-            && DebugPlayer(args) is { } playerWindow)
+            && args.Contains("--play"))
         {
-            playerOnly.MainWindow = playerWindow;
-            base.OnFrameworkInitializationCompleted();
-            return;
+            var saved = Task.Run(() => JsonSettingsStore.CreateDefault().LoadAsync()).GetAwaiter().GetResult();
+            Themes.ThemeManager.Apply(Themes.ThemeManager.FromName(saved.Theme));
+            if (DebugPlayer(args) is { } playerWindow)
+            {
+                playerOnly.MainWindow = playerWindow;
+                base.OnFrameworkInitializationCompleted();
+                return;
+            }
         }
 #endif
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

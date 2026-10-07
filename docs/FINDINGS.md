@@ -536,3 +536,9 @@ was opened with the Debug-only `--play <file> [--seek <s>]` switch. Windows show
 seconds later, and 35.6 s after a seek to 30 s; Linux (Xvfb) showed 3.5 s, 7.7 s and 36.3 s. With
 `gstreamer1.0-libav` removed, Linux showed the missing-plug-in message. No person has used either player
 yet, and the core tests cannot cover them.
+
+**XP chrome for every window (same day).** The owner saw the player window keep the system frame in the XP
+theme. The title bar, blue frame and resize grips moved out of `MainWindow.axaml` into `XpWindowChrome`, which
+the main window, the player window and the confirmation dialog all use. A Windows runner with the XP theme
+saved showed the player in XP's frame, with the video still drawing inside the transparent, frameless window
+(5.9 s, then 35.4 s after a seek to 30 s).

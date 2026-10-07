@@ -29,7 +29,6 @@ public sealed class PlayerWindow : Window
         MinWidth = 320;
         MinHeight = 240;
         Icon = AppIcon.Get();
-        Themes.ThemeManager.Track(this);
         Video = video;
 
         var openElsewhere = new Button { Content = "Open in default player", Margin = new Thickness(8) };
@@ -89,8 +88,7 @@ public sealed class PlayerWindow : Window
         _root = new DockPanel();
         _root.Children.Add(bar);
         _root.Children.Add(video);
-        Content = _root;
-        this[!BackgroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("BackgroundBrush");
+        Content = new Themes.XpWindowChrome(this, _root);
     }
 
     public Control Video { get; private set; }

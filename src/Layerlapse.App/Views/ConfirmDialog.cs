@@ -19,8 +19,6 @@ public sealed class ConfirmDialog : Window
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Icon = AppIcon.Get();
-        Themes.ThemeManager.Track(this);
-        this[!BackgroundProperty] = new DynamicResourceExtension("CardBrush");
 
         var cancel = new Button { Content = "Cancel", IsDefault = true, IsCancel = true };
         var ok = new Button { Content = confirmLabel, FontWeight = Avalonia.Media.FontWeight.Bold };
@@ -33,7 +31,7 @@ public sealed class ConfirmDialog : Window
         cancel.Click += (_, _) => Close(false);
         ok.Click += (_, _) => Close(true);
 
-        Content = new StackPanel
+        var body = new StackPanel
         {
             Margin = new Thickness(20),
             Spacing = 12,
@@ -50,6 +48,7 @@ public sealed class ConfirmDialog : Window
                 },
             },
         };
+        Content = new Themes.XpWindowChrome(this, body, "CardBrush");
     }
 
     public static async Task<bool> AskAsync(Window owner, string title, string message, string confirmLabel, bool destructive = false) =>
