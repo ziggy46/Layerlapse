@@ -54,6 +54,7 @@
                      Text="Layerlapse can find printers on your network. Your computer may ask for permission to find devices on the local network; choose Allow." />
           <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
             <Button Content="Find printers" Command="{Binding SearchCommand}" />
+            <Button Content="Scan the network" Command="{Binding ScanCommand}" IsVisible="{Binding CanScan}" />
             <ProgressBar IsIndeterminate="True" Width="80" VerticalAlignment="Center" IsVisible="{Binding IsSearching}" />
           </StackPanel>
           <TextBlock Classes="secondary" Margin="0,6,0,0" Text="{Binding SearchStatus}"

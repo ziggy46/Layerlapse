@@ -46,6 +46,10 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
     [ObservableProperty]
     public partial string? SearchStatus { get; private set; }
 
+    /// <summary>Offered after a search heard no announcements: probe port 990 on this computer's local network.</summary>
+    [ObservableProperty]
+    public partial bool CanScan { get; private set; }
+
     /// <summary>Choosing a found printer fills in its address.</summary>
     [ObservableProperty]
     public partial DiscoveredPrinterItem? SelectedDiscovered { get; set; }
@@ -167,9 +171,17 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
         });
     }
 
-    /// <summary>Listens for printer announcements, then scans port 990 if none arrive.</summary>
+    /// <summary>Listens for printer announcements (a few seconds, receive only).</summary>
     [RelayCommand(CanExecute = nameof(CanStartSearch))]
-    private async Task SearchAsync()
+    private Task SearchAsync() => DiscoverAsync(new DiscoveryOptions { ScanIfNothingAnnounced = false }, "Listening for printers… this takes about 8 seconds.");
+
+    /// <summary>Fallback when nothing announced itself: try port 990 on every address of the local network.</summary>
+    [RelayCommand(CanExecute = nameof(CanStartSearch))]
+    private Task ScanAsync() => DiscoverAsync(
+        new DiscoveryOptions { ListenDuration = TimeSpan.FromSeconds(1), ScanIfNothingAnnounced = true },
+        "Scanning the local network… this takes up to about 15 seconds.");
+
+    private async Task DiscoverAsync(DiscoveryOptions options, string progress)
     {
         if (discovery is null)
         {
@@ -183,10 +195,11 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
         OnPropertyChanged(nameof(HasDiscovered));
         SelectedDiscovered = null;
         IsSearching = true;
-        SearchStatus = "Searching… this takes up to about 15 seconds.";
+        CanScan = false;
+        SearchStatus = progress;
         try
         {
-            await foreach (var printer in discovery.DiscoverAsync(new DiscoveryOptions(), token))
+            await foreach (var printer in discovery.DiscoverAsync(options, token))
             {
                 Discovered.Add(new DiscoveredPrinterItem(printer));
                 OnPropertyChanged(nameof(HasDiscovered));
@@ -194,6 +207,7 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
 
             SearchStatus = Discovered.Count switch
             {
+                0 when !options.ScanIfNothingAnnounced => "No printer announced itself. Scan the network, or enter the IP address below.",
                 0 => "No printers found. Check that the printer is on and on the same network, or enter its IP address below.",
                 1 => "Found 1 printer.",
                 var n => $"Found {n} printers. Choose yours.",
@@ -202,6 +216,8 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
             {
                 SelectedDiscovered = Discovered[0];
             }
+
+            CanScan = Discovered.Count == 0 && !options.ScanIfNothingAnnounced;
         }
         catch (OperationCanceledException)
         {
@@ -301,6 +317,8 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
 
     private bool CanStartSearch() => discovery is not null && !IsSearching;
 
+    partial void OnIsSearchingChanged(bool value) => ScanCommand.NotifyCanExecuteChanged();
+
     private bool CanSaveModel() => ChosenModel is not null;
 
     private bool CanSubmit() => !IsBusy && Host.Trim().Length > 0 && AccessCode.Trim().Length > 0;
@@ -338,9 +356,9 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
                 Profile = Profile with { Name = refreshed.Name, Firmware = refreshed.Firmware, ModelCode = refreshed.ModelCode, Model = Profile.Model ?? refreshed.Model };
             }
         }
-        catch (Exception e) when (e is IOException or DiscoveryException or UnauthorizedAccessException)
+        catch (Exception)
         {
-            // Details are optional; the connection already works.
+            // Details are optional and this runs in the background; the connection already works.
         }
     }
 

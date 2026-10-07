@@ -125,6 +125,18 @@ public sealed class PrinterSetupServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Refresh_does_not_bring_back_a_forgotten_printer()
+    {
+        var saved = (await _service.ConnectAndSaveAsync("192.168.1.50", "12345678")).Profile;
+        _discovery.Printers.Add(FakeDiscovery.Announced());
+        await _service.ForgetAsync(saved);
+
+        await _service.RefreshDetailsAsync(saved);
+
+        Assert.Null(await _profiles.GetLastAsync());
+    }
+
+    [Fact]
     public async Task Unreachable_and_not_announced_stays_unreachable()
     {
         var saved = (await _service.ConnectAndSaveAsync("192.168.1.50", "12345678")).Profile;

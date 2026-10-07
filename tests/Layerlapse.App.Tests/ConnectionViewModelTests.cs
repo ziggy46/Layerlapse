@@ -232,6 +232,11 @@ public sealed class ConnectionViewModelTests : IDisposable
         await vm.SearchCommand.ExecuteAsync(null);
 
         Assert.False(vm.HasDiscovered);
+        Assert.Contains("Scan the network", vm.SearchStatus);
+        Assert.True(vm.CanScan);
+
+        await vm.ScanCommand.ExecuteAsync(null);
+        Assert.False(vm.CanScan);
         Assert.Contains("enter its IP address", vm.SearchStatus);
     }
 

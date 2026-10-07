@@ -182,7 +182,11 @@ public sealed class PrinterSetupService(
         }
 
         // Save over the latest stored copy so a concurrent change (such as a model choice) is not lost.
-        var latest = await profiles.GetAsync(profile.Id, cancellationToken) ?? profile;
+        if (await profiles.GetAsync(profile.Id, cancellationToken) is not { } latest)
+        {
+            return profile; // forgotten while we were listening: do not bring it back
+        }
+
         updated = latest.With(found) with { Host = latest.Host };
         await profiles.SaveAsync(updated, cancellationToken);
         return updated;
