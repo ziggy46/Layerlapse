@@ -41,7 +41,10 @@
 
       <!-- Sidebar: the printer (opens its connection page), Timelapses, Models, Settings. -->
       <Border Grid.Column="0" Classes="sidebar">
-        <StackPanel Margin="12" Spacing="2">
+        <DockPanel Margin="12">
+        <TextBlock DockPanel.Dock="Bottom" Classes="secondary" FontSize="11" TextWrapping="Wrap"
+                   Text="Unofficial app. Not affiliated with Bambu Lab." />
+        <StackPanel Spacing="2">
           <TextBlock Text="Layerlapse" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
           <Button Command="{Binding ShowPrinterCommand}" Background="Transparent" BorderThickness="0"
                   Padding="0" Margin="0,0,0,12" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
@@ -57,15 +60,11 @@
             <ListBoxItem Content="Settings" />
           </ListBox>
         </StackPanel>
+        </DockPanel>
       </Border>
 
       <!-- Content -->
-      <DockPanel Grid.Column="1">
-        <TextBlock DockPanel.Dock="Bottom" Margin="0,0,0,12" HorizontalAlignment="Center" FontSize="12"
-                   Text="Unofficial app. Not affiliated with Bambu Lab."
-                   Foreground="{DynamicResource TextSecondaryBrush}" />
-        <ContentControl Content="{Binding CurrentContent}" />
-      </DockPanel>
+      <ContentControl Grid.Column="1" Content="{Binding CurrentContent}" />
 
     </Grid>
   </DockPanel>
