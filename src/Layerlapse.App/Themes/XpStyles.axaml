@@ -30,6 +30,22 @@
     <Setter Property="CornerRadius" Value="0" />
   </Style>
 
+  <!-- Backing behind the check box on each thumbnail, so it shows on dark photos -->
+  <Style Selector="Border.thumb-check">
+    <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="2" />
+  </Style>
+  <!-- XP's check box is already a white box with its own border, so it needs no backing -->
+  <Style Selector=":is(Window).xp Border.thumb-check">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector=":is(Window).xp Border.thumb-check CheckBox">
+    <Setter Property="Width" Value="15" />
+    <Setter Property="MinWidth" Value="15" />
+  </Style>
+
   <!-- Destructive buttons, in every theme -->
   <Style Selector="Button.danger">
     <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />

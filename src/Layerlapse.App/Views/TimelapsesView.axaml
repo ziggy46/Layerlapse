@@ -76,8 +76,7 @@
                 <StackPanel>
                   <Panel Height="124" Background="{DynamicResource PanelBrush}">
                     <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
-                    <Border Background="{DynamicResource CardBrush}" CornerRadius="4" Margin="6" Padding="2"
-                            HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <Border Classes="thumb-check" Margin="6" HorizontalAlignment="Left" VerticalAlignment="Top">
                       <CheckBox IsChecked="{Binding IsSelected}" MinWidth="0" Padding="0" ToolTip.Tip="Select for download" />
                     </Border>
                   </Panel>
