@@ -25,6 +25,8 @@ public class DeletePolicyTests
     [InlineData("timelapse/video_2026-10-04_09-44-43.mp4")]
     [InlineData("/timelapse/video_2026-10-04_09-44-43.mp4 ")]
     [InlineData("/timelapse/video_2026-10-04_09-44-43.mp4\r\nDELE /verify_job")]
+    [InlineData("/timelapse/video_2026-10-04_09-44-43.mp4\n")]
+    [InlineData("/timelapse/thumbnail/video_2026-10-04_09-44-43.jpg\n")]
     [InlineData("/timelapse/thumbnail/video_2026-10-04_09-44-43.mp4")]
     public void Refuses_everything_else(string path)
     {

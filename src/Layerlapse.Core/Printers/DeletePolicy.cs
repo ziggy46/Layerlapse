@@ -9,10 +9,10 @@ namespace Layerlapse.Core.Printers;
 /// </summary>
 public static partial class DeletePolicy
 {
-    [GeneratedRegex(@"^/timelapse/video_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.mp4$")]
+    [GeneratedRegex(@"^/timelapse/video_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.mp4\z")]
     private static partial Regex Video();
 
-    [GeneratedRegex(@"^/timelapse/thumbnail/video_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.jpg$")]
+    [GeneratedRegex(@"^/timelapse/thumbnail/video_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.jpg\z")]
     private static partial Regex Thumbnail();
 
     public static bool IsAllowed(string remotePath) => Video().IsMatch(remotePath) || Thumbnail().IsMatch(remotePath);
