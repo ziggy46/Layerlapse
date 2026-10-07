@@ -30,6 +30,57 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
     private CancellationTokenSource? _work;
     private CancellationTokenSource? _search;
 
+    /// <summary>Every saved printer, for switching between them.</summary>
+    public ObservableCollection<SavedPrinterItem> SavedPrinters { get; } = [];
+
+    public bool HasSeveralPrinters => SavedPrinters.Count > 1;
+
+    /// <summary>Space used on the printer, filled in by the window once connected.</summary>
+    [ObservableProperty]
+    public partial string? StorageText { get; set; }
+
+    /// <summary>Reloads the list of saved printers, marking the current one.</summary>
+    public async Task RefreshSavedPrintersAsync()
+    {
+        SavedPrinters.Clear();
+        foreach (var printer in await setup.GetAllAsync())
+        {
+            SavedPrinters.Add(new SavedPrinterItem(printer, printer.Id == Profile?.Id));
+        }
+
+        OnPropertyChanged(nameof(HasSeveralPrinters));
+    }
+
+    /// <summary>Connects to another saved printer and makes it the one used at launch.</summary>
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private async Task SwitchToAsync(SavedPrinterItem item)
+    {
+        if (item.Profile.Id == Profile?.Id)
+        {
+            return;
+        }
+
+        await setup.SetLastAsync(item.Profile);
+        StorageText = null;
+        State = ConnectionState.Connecting;
+        Profile = item.Profile;
+        await RefreshSavedPrintersAsync();
+        await ReconnectAsync();
+    }
+
+    /// <summary>Setup form for an additional printer; Cancel returns to the current one.</summary>
+    [RelayCommand]
+    private void AddPrinter()
+    {
+        Host = "";
+        AccessCode = "";
+        SelectedDiscovered = null;
+        Discovered.Clear();
+        OnPropertyChanged(nameof(HasDiscovered));
+        SearchStatus = null;
+        ShowSetup();
+    }
+
     /// <summary>Printers found by the last search, in the order found.</summary>
     public ObservableCollection<DiscoveredPrinterItem> Discovered { get; } = [];
 
@@ -159,6 +210,7 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
         // Connecting before the profile appears, so nothing mistakes the initial state for "needs setup".
         State = ConnectionState.Connecting;
         Profile = last;
+        await RefreshSavedPrintersAsync();
         await ReconnectAsync();
     }
 
@@ -256,6 +308,7 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
             var result = await setup.ConnectAndSaveAsync(Host, AccessCode, picked, null, token);
             AccessCode = "";
             Profile = result.Profile;
+            await RefreshSavedPrintersAsync();
             Warning = result.Warning;
             Status = result.Warning is null ? $"The access code is saved in {setup.Credentials.Name}." : null;
 
@@ -313,6 +366,19 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
         Profile = null;
         Host = "";
         AccessCode = "";
+        StorageText = null;
+
+        // Another saved printer becomes current, if there is one.
+        if (await setup.GetLastAsync() is { } next)
+        {
+            State = ConnectionState.Connecting;
+            Profile = next;
+            await RefreshSavedPrintersAsync();
+            await ReconnectAsync();
+            return;
+        }
+
+        await RefreshSavedPrintersAsync();
         ShowSetup();
     }
 

@@ -102,6 +102,12 @@ public sealed class PrinterSetupService(
         return new PrinterSaveResult(profile, warning);
     }
 
+    /// <summary>Every saved printer.</summary>
+    public Task<IReadOnlyList<PrinterProfile>> GetAllAsync(CancellationToken cancellationToken = default) => profiles.GetAllAsync(cancellationToken);
+
+    /// <summary>Remembers which saved printer to reconnect to at the next launch.</summary>
+    public Task SetLastAsync(PrinterProfile profile, CancellationToken cancellationToken = default) => profiles.SetLastAsync(profile.Id, cancellationToken);
+
     /// <summary>The last used printer, or null when none is saved.</summary>
     public Task<PrinterProfile?> GetLastAsync(CancellationToken cancellationToken = default) => profiles.GetLastAsync(cancellationToken);
 

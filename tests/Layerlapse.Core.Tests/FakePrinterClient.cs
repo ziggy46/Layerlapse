@@ -39,6 +39,9 @@ internal sealed class FakePrinter
 
     public int RangeReads { get; private set; }
 
+    /// <summary>Every DELE the fake received, in order.</summary>
+    public List<string> Deletes { get; } = [];
+
     /// <summary>Bytes actually sent over all transfers.</summary>
     public long BytesSent { get; private set; }
 
@@ -108,6 +111,18 @@ internal sealed class FakePrinter
 
         public Task DownloadAsync(string remotePath, string localPath, IProgress<long>? progress = null, CancellationToken cancellationToken = default) =>
             DownloadAsync(remotePath, localPath, 0, progress, cancellationToken);
+
+        public Task DeleteAsync(string remotePath, CancellationToken cancellationToken = default)
+        {
+            DeletePolicy.Check(remotePath);
+            printer.Deletes.Add(remotePath);
+            if (!printer.Files.Remove(remotePath))
+            {
+                throw new FtpReplyException("DELE", 550, "550 Delete operation failed.");
+            }
+
+            return Task.CompletedTask;
+        }
 
         public Task<byte[]> ReadRangeAsync(string remotePath, long offset, int length, CancellationToken cancellationToken = default)
         {

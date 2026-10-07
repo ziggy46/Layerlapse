@@ -1,7 +1,8 @@
 namespace Layerlapse.Core.Printers;
 
 /// <summary>
-/// Read-only access to a printer's storage. Nothing here writes to or deletes from the printer.
+/// Access to a printer's storage. Everything is read-only except <see cref="DeleteAsync"/>, which only accepts
+/// paths allowed by <see cref="DeletePolicy"/>.
 /// </summary>
 public interface IPrinterClient : IAsyncDisposable
 {
@@ -29,6 +30,13 @@ public interface IPrinterClient : IAsyncDisposable
         string localPath,
         IProgress<long>? progress = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes one timelapse video or thumbnail (FTP DELE). The only command that changes the printer.
+    /// </summary>
+    /// <exception cref="UnauthorizedAccessException">The path is not allowed by <see cref="DeletePolicy"/>; nothing is sent.</exception>
+    /// <exception cref="FtpReplyException">The printer refused, for example 550 when the file does not exist.</exception>
+    Task DeleteAsync(string remotePath, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reads up to <paramref name="length"/> bytes starting at <paramref name="offset"/> (FTP REST, then the

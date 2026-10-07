@@ -126,6 +126,22 @@ public class PrinterTests(ITestOutputHelper output)
         }
     }
 
+    /// <summary>
+    /// The only write-command check against the real printer: DELE on a well-formed timelapse name that does not
+    /// exist. It cannot remove anything, and shows the printer answers 550 and the connection survives.
+    /// </summary>
+    [PrinterFact]
+    public async Task Deleting_a_timelapse_that_does_not_exist_is_a_550()
+    {
+        await using var client = CreateClient();
+        await client.ConnectAsync();
+
+        var error = await Assert.ThrowsAsync<FtpReplyException>(() => client.DeleteAsync("/timelapse/video_1999-01-01_00-00-00.mp4"));
+
+        Assert.Equal(550, error.ReplyCode);
+        Assert.NotEmpty(await client.ListAsync("/timelapse/"));
+    }
+
     [PrinterFact]
     public async Task Exposes_serial_from_certificate()
     {

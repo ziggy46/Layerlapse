@@ -113,6 +113,9 @@
         <TextBlock Classes="secondary" Text="{Binding PrinterDetail}" />
         <TextBlock Classes="secondary" Text="{Binding FirmwareText}" IsVisible="{Binding FirmwareText, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
+        <TextBlock Classes="secondary" Margin="0,8,0,0" Text="{Binding StorageText}"
+                   IsVisible="{Binding StorageText, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
         <!-- Model could not be detected: ask -->
         <StackPanel IsVisible="{Binding NeedsModelChoice}" Margin="0,12,0,0" Spacing="6">
           <TextBlock Text="Which model is this printer?" />
@@ -125,6 +128,27 @@
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button Content="Edit connection" Command="{Binding EditCommand}" />
           <Button Content="Forget printer" Command="{Binding ForgetCommand}" />
+          <Button Content="Add another printer" Command="{Binding AddPrinterCommand}" />
+        </StackPanel>
+
+        <!-- Other saved printers -->
+        <StackPanel IsVisible="{Binding HasSeveralPrinters}" Margin="0,16,0,0" Spacing="4">
+          <TextBlock Text="Your printers" FontWeight="SemiBold" />
+          <ItemsControl ItemsSource="{Binding SavedPrinters}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:SavedPrinterItem">
+                <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Title}" />
+                    <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="Connect" IsVisible="{Binding IsOther}" VerticalAlignment="Center"
+                          Command="{Binding $parent[ItemsControl].((vm:ConnectionViewModel)DataContext).SwitchToCommand}"
+                          CommandParameter="{Binding}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
       </StackPanel>
 

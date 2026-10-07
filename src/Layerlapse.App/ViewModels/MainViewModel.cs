@@ -13,6 +13,7 @@ public enum AppPage
     Printer,
     Timelapses,
     Models,
+    Settings,
 }
 
 /// <summary>
@@ -28,7 +29,8 @@ public partial class MainViewModel : ViewModelBase
     private readonly Action<string>? _openInSlicer;
     private readonly JsonSettingsStore? _settings;
     private readonly Action<string>? _revealFolder;
-    private string? _attachedHost;
+    private readonly Func<string, string, string, Task<bool>>? _confirmDelete;
+    private string? _attachedKey;
     private Layerlapse.Core.Printers.PrinterSession? _session;
 
     public MainViewModel(
@@ -39,7 +41,9 @@ public partial class MainViewModel : ViewModelBase
         Func<string, string?, Task<string?>>? pickFolder = null,
         JsonSettingsStore? settings = null,
         Action<string>? revealFolder = null,
-        Action<string>? openInSlicer = null)
+        Action<string>? openInSlicer = null,
+        SettingsViewModel? settingsPage = null,
+        Func<string, string, string, Task<bool>>? confirmDelete = null)
     {
         Connection = connection;
         _setup = setup;
@@ -49,8 +53,19 @@ public partial class MainViewModel : ViewModelBase
         _settings = settings;
         _revealFolder = revealFolder;
         _openInSlicer = openInSlicer;
+        _confirmDelete = confirmDelete;
+        Settings = settingsPage ?? new SettingsViewModel(settings);
+        Settings.Changed += async (_, _) =>
+        {
+            if (Timelapses is { } timelapses)
+            {
+                await timelapses.ApplySettingsAsync();
+            }
+        };
         Connection.PropertyChanged += OnConnectionChanged;
     }
+
+    public SettingsViewModel Settings { get; }
 
     public ConnectionViewModel Connection { get; }
 
@@ -72,13 +87,14 @@ public partial class MainViewModel : ViewModelBase
     {
         AppPage.Timelapses when Timelapses is not null => Timelapses,
         AppPage.Models when Models is not null => Models,
+        AppPage.Settings => Settings,
         _ => Connection,
     };
 
     /// <summary>Sidebar list selection: 0 = Timelapses, 1 = Models; -1 when the printer page is showing.</summary>
     public int NavIndex
     {
-        get => CurrentPage switch { AppPage.Timelapses => 0, AppPage.Models => 1, _ => -1 };
+        get => CurrentPage switch { AppPage.Timelapses => 0, AppPage.Models => 1, AppPage.Settings => 2, _ => -1 };
         set
         {
             if (value == 0 && Timelapses is not null)
@@ -88,6 +104,10 @@ public partial class MainViewModel : ViewModelBase
             else if (value == 1 && Models is not null)
             {
                 CurrentPage = AppPage.Models;
+            }
+            else if (value == 2)
+            {
+                CurrentPage = AppPage.Settings;
             }
             else
             {
@@ -101,6 +121,8 @@ public partial class MainViewModel : ViewModelBase
 
     public async Task InitializeAsync()
     {
+        await Settings.LoadAsync();
+        _ = Settings.CheckForUpdatesQuietlyAsync();
         if (_setup is not null && await _setup.GetLastAsync() is { } last)
         {
             await ShowTimelapsesForAsync(last.Id);
@@ -154,9 +176,9 @@ public partial class MainViewModel : ViewModelBase
             case ConnectionState.Connected:
                 var wasShowingPrinterAfterSetup = Timelapses?.PrinterId != profile.Id;
                 await ShowTimelapsesForAsync(profile.Id);
-                if (_setup is not null && Timelapses is { } timelapses && _attachedHost != profile.Host)
+                if (_setup is not null && Timelapses is { } timelapses && _attachedKey != profile.Id + "@" + profile.Host)
                 {
-                    _attachedHost = profile.Host;
+                    _attachedKey = profile.Id + "@" + profile.Host;
                     if (wasShowingPrinterAfterSetup)
                     {
                         CurrentPage = AppPage.Timelapses;
@@ -170,21 +192,44 @@ public partial class MainViewModel : ViewModelBase
                     // One shared connection for both pages: operations take turns.
                     _session = await _setup.OpenSessionAsync(profile);
                     var models = Models;
-                    await timelapses.AttachAsync(_session);
+                    var session = _session;
+                    await timelapses.ApplySettingsAsync();
+                    await timelapses.AttachAsync(session);
                     if (models is not null)
                     {
-                        await models.AttachAsync(_session);
+                        await models.AttachAsync(session);
                     }
+
+                    _ = MeasureStorageAsync(session);
                 }
 
                 break;
 
             case ConnectionState.Failed or ConnectionState.CertificateChanged or ConnectionState.Setup:
-                _attachedHost = null;
+                _attachedKey = null;
                 Timelapses?.MarkOffline();
                 Models?.MarkOffline();
                 CurrentPage = AppPage.Printer;
                 break;
+        }
+    }
+
+    /// <summary>Space used per kind of file, shown on the printer page. Optional: failures are ignored.</summary>
+    private async Task MeasureStorageAsync(Layerlapse.Core.Printers.PrinterSession session)
+    {
+        try
+        {
+            var usage = await Layerlapse.Core.Printers.StorageUsage.MeasureAsync(session);
+            if (ReferenceEquals(session, _session))
+            {
+                Connection.StorageText =
+                    $"Storage used: {TimelapseItemViewModel.FormatSize(usage.TotalBytes)} · timelapses {TimelapseItemViewModel.FormatSize(usage.Timelapses.Bytes)} ({usage.Timelapses.Files}) · " +
+                    $"models {TimelapseItemViewModel.FormatSize(usage.Models.Bytes)} ({usage.Models.Files}) · camera recordings {TimelapseItemViewModel.FormatSize(usage.CameraRecordings.Bytes)} ({usage.CameraRecordings.Files}). " +
+                    "The printer does not report free space.";
+            }
+        }
+        catch (Exception e) when (e is IOException or ObjectDisposedException or OperationCanceledException)
+        {
         }
     }
 
@@ -197,7 +242,7 @@ public partial class MainViewModel : ViewModelBase
 
         await CloseTimelapsesAsync();
         var cache = _cacheFactory(printerId);
-        Timelapses = new TimelapsesViewModel(printerId, cache, _player, _pickFolder, _settings, _revealFolder);
+        Timelapses = new TimelapsesViewModel(printerId, cache, _player, _pickFolder, _settings, _revealFolder, _confirmDelete);
         Models = new ModelsViewModel(cache.Root, _pickFolder, _settings, _revealFolder, _openInSlicer);
         await Timelapses.LoadCachedAsync();
         await Models.LoadCachedAsync();
@@ -208,7 +253,7 @@ public partial class MainViewModel : ViewModelBase
         if (Timelapses is { } old)
         {
             Timelapses = null;
-            _attachedHost = null;
+            _attachedKey = null;
             await old.DisposeAsync();
         }
 

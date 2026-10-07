@@ -32,13 +32,25 @@ public partial class App : Application
                 connection => new BambuFtpsClient(connection),
                 discovery);
             var player = new BuiltInVideoPlayer(() => desktop.MainWindow);
+            var settings = JsonSettingsStore.CreateDefault();
+            Func<string, string?, Task<string?>> pickFolder = (title, start) => PickFolderAsync(desktop.MainWindow, title, start);
+            Task<bool> Ask(string title, string message, string confirm, bool destructive) =>
+                desktop.MainWindow is { } owner ? ConfirmDialog.AskAsync(owner, title, message, confirm, destructive) : Task.FromResult(false);
+            var settingsPage = new SettingsViewModel(
+                settings,
+                new UpdateChecker(new System.Net.Http.HttpClient(), UpdateChecker.DefaultFeed),
+                pickFolder,
+                (title, message, confirm) => Ask(title, message, confirm, destructive: false),
+                OpenWithDefaultApp);
             var main = new MainViewModel(
                 new ConnectionViewModel(setup, discovery), setup,
                 player: player,
-                pickFolder: (title, start) => PickFolderAsync(desktop.MainWindow, title, start),
-                settings: JsonSettingsStore.CreateDefault(),
+                pickFolder: pickFolder,
+                settings: settings,
                 revealFolder: OpenWithDefaultApp,
-                openInSlicer: path => BambuStudioLauncher.Open(path, OpenWithDefaultApp));
+                openInSlicer: path => BambuStudioLauncher.Open(path, OpenWithDefaultApp),
+                settingsPage: settingsPage,
+                confirmDelete: (title, message, confirm) => Ask(title, message, confirm, destructive: true));
             desktop.MainWindow = new MainWindow { DataContext = main };
 
             // Reconnect to the last printer with no typing; the view shows progress and any error.

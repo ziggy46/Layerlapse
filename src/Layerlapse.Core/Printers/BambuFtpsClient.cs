@@ -7,7 +7,8 @@ using Org.BouncyCastle.Tls;
 namespace Layerlapse.Core.Printers;
 
 /// <summary>
-/// Read-only implicit FTPS client for Bambu Lab printers.
+/// Implicit FTPS client for Bambu Lab printers. Read-only except <see cref="DeleteAsync"/>, which is limited to
+/// timelapse files by <see cref="DeletePolicy"/>.
 ///
 /// The printer runs vsftpd with require_ssl_reuse: every data connection must resume the control
 /// connection's TLS session. .NET's SslStream (and so FluentFTP) cannot do that on macOS or Linux,
@@ -150,6 +151,12 @@ public sealed partial class BambuFtpsClient : IPrinterClient
         }
 
         _controlSocket?.Dispose();
+    }
+
+    public async Task DeleteAsync(string remotePath, CancellationToken cancellationToken = default)
+    {
+        DeletePolicy.Check(remotePath);
+        (await CommandAsync($"DELE {CheckPath(remotePath)}", cancellationToken)).Expect(250);
     }
 
     public async Task<byte[]> ReadRangeAsync(string remotePath, long offset, int length, CancellationToken cancellationToken = default)

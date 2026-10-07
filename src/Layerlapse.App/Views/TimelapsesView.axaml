@@ -93,6 +93,10 @@
                       <Button Content="Download"
                               Command="{Binding $parent[ItemsControl].((vm:TimelapsesViewModel)DataContext).DownloadOneCommand}"
                               CommandParameter="{Binding}" />
+                      <Button Content="Delete…" Foreground="{DynamicResource DangerBrush}"
+                              IsVisible="{Binding $parent[ItemsControl].((vm:TimelapsesViewModel)DataContext).AllowDelete}"
+                              Command="{Binding $parent[ItemsControl].((vm:TimelapsesViewModel)DataContext).DeleteCommand}"
+                              CommandParameter="{Binding}" ToolTip.Tip="Delete this timelapse from the printer (asks first)" />
                     </StackPanel>
                     <TextBlock Text="{Binding DownloadStatus}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
                                IsVisible="{Binding DownloadStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />

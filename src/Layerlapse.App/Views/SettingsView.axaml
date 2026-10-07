@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Layerlapse.App.ViewModels"
+             x:Class="Layerlapse.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.secondary">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.heading">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Border.section">
+      <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="16" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer>
+    <StackPanel Margin="24" Spacing="12" MaxWidth="640" HorizontalAlignment="Left">
+      <TextBlock Text="Settings" FontSize="16" FontWeight="SemiBold" />
+
+      <Border Classes="section">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="heading" Text="Deleting from the printer" />
+          <ToggleSwitch IsChecked="{Binding AllowDelete}" OnContent="Allowed" OffContent="Off" />
+          <TextBlock Classes="secondary"
+                     Text="When allowed, each timelapse has a Delete button. Files are deleted one at a time after a confirmation that names the file. Models and other files are never deleted." />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="section">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="heading" Text="Auto-download new timelapses" />
+          <ToggleSwitch IsChecked="{Binding AutoDownload}" OnContent="On" OffContent="Off" />
+          <TextBlock Classes="secondary" Text="{Binding AutoDownloadText}" />
+          <Button Content="Change folder" Command="{Binding ChangeAutoDownloadFolderCommand}" IsVisible="{Binding AutoDownload}" />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="section">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="heading" Text="About" />
+          <TextBlock Text="{Binding VersionText}" />
+          <TextBlock Classes="secondary"
+                     Text="Layerlapse is an unofficial app. It is not made, endorsed or supported by Bambu Lab. Bambu Lab is a trademark of its owner." />
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+            <Button Content="Check for updates" Command="{Binding CheckForUpdatesCommand}" />
+            <Button Content="Open release page" Command="{Binding OpenUpdatePageCommand}" IsVisible="{Binding HasUpdate}" />
+          </StackPanel>
+          <TextBlock Classes="secondary" Text="{Binding UpdateText}"
+                     IsVisible="{Binding UpdateText, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

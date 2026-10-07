@@ -32,6 +32,7 @@
           <ListBox SelectedIndex="{Binding NavIndex}" Background="Transparent">
             <ListBoxItem Content="Timelapses" IsEnabled="{Binding HasTimelapses}" />
             <ListBoxItem Content="Models" IsEnabled="{Binding HasTimelapses}" />
+            <ListBoxItem Content="Settings" />
           </ListBox>
         </StackPanel>
         <ToggleSwitch DockPanel.Dock="Bottom" VerticalAlignment="Bottom"

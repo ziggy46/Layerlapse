@@ -36,13 +36,36 @@ public sealed class JsonPrinterProfileStore(string filePath) : IPrinterProfileSt
     public async Task<PrinterProfile?> GetAsync(string id, CancellationToken cancellationToken = default) =>
         (await ReadAsync(cancellationToken)).Printers.FirstOrDefault(p => p.Id == id);
 
+    public async Task<IReadOnlyList<PrinterProfile>> GetAllAsync(CancellationToken cancellationToken = default) =>
+        (await ReadAsync(cancellationToken)).Printers;
+
+    public async Task SetLastAsync(string id, CancellationToken cancellationToken = default)
+    {
+        await _lock.WaitAsync(cancellationToken);
+        try
+        {
+            var file = await ReadAsync(cancellationToken);
+            if (file.Printers.Any(p => p.Id == id))
+            {
+                await WriteAsync(file with { LastPrinterId = id }, cancellationToken);
+            }
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
     public async Task SaveAsync(PrinterProfile profile, CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);
         try
         {
             var file = await ReadAsync(cancellationToken);
-            var printers = file.Printers.Where(p => p.Id != profile.Id).Append(profile).ToList();
+            // Keep each printer's position so the list does not reorder when one reconnects.
+            var printers = file.Printers.Any(p => p.Id == profile.Id)
+                ? file.Printers.Select(p => p.Id == profile.Id ? profile : p).ToList()
+                : file.Printers.Append(profile).ToList();
             await WriteAsync(new ProfileFile(profile.Id, printers), cancellationToken);
         }
         finally

@@ -3,12 +3,28 @@ using System.Text.Json;
 namespace Layerlapse.Core.Setup;
 
 /// <summary>Small, non-secret preferences.</summary>
-public sealed record AppSettings(string? LastDownloadFolder = null);
+/// <param name="AllowDelete">Deleting timelapses from the printer is off unless the user turns it on.</param>
+/// <param name="AutoDownloadFolder">Where new timelapses are saved automatically; null when auto-download is off.</param>
+/// <param name="AutoDownloadSince">Only timelapses finished after this (UTC) are auto-downloaded, so turning the
+/// feature on does not fetch every old timelapse.</param>
+public sealed record AppSettings(
+    string? LastDownloadFolder = null,
+    bool AllowDelete = false,
+    string? AutoDownloadFolder = null,
+    DateTime? AutoDownloadSince = null)
+{
+    public bool AutoDownloadEnabled => AutoDownloadFolder is not null && AutoDownloadSince is not null;
+}
 
 /// <summary>Reads and writes settings.json next to printers.json. Never holds access codes.</summary>
 public sealed class JsonSettingsStore(string filePath)
 {
-    private static readonly JsonSerializerOptions Options = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        IgnoreReadOnlyProperties = true,
+    };
 
     public static JsonSettingsStore CreateDefault() =>
         new(Path.Combine(

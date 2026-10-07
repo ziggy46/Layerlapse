@@ -70,6 +70,40 @@ public sealed class TimelapseLibrary(PrinterSession session, TimelapseCache cach
         return FromCache(cached);
     }
 
+    /// <summary>
+    /// Deletes one timelapse and its thumbnail from the printer, then drops it from the cached listing.
+    /// The cached copy of the video (if it was played) is kept: it may now be the only copy.
+    /// </summary>
+    /// <param name="deletingEnabled">The user's "allow deleting" setting. When false, nothing is sent.</param>
+    /// <exception cref="UnauthorizedAccessException">Deleting is turned off, or the file is not a timelapse.</exception>
+    public async Task DeleteAsync(Timelapse timelapse, bool deletingEnabled, CancellationToken cancellationToken = default)
+    {
+        if (!deletingEnabled)
+        {
+            throw new UnauthorizedAccessException("Deleting from the printer is turned off in Settings.");
+        }
+
+        DeletePolicy.Check(timelapse.RemotePath);
+        DeletePolicy.Check(timelapse.ThumbnailRemotePath);
+        await session.RunAsync(async client =>
+        {
+            await client.DeleteAsync(timelapse.RemotePath, cancellationToken);
+            try
+            {
+                await client.DeleteAsync(timelapse.ThumbnailRemotePath, cancellationToken);
+            }
+            catch (FtpReplyException e) when (e.ReplyCode == 550)
+            {
+                // No thumbnail: the video is gone, which is what matters.
+            }
+        }, cancellationToken);
+
+        if (await cache.LoadListingAsync(cancellationToken) is { } listing)
+        {
+            await cache.SaveListingAsync(listing with { Timelapses = listing.Timelapses.Where(t => t.Name != timelapse.Name).ToList() }, cancellationToken);
+        }
+    }
+
     /// <summary>Local path of the thumbnail, downloading it if needed. Null when the printer has none.</summary>
     public async Task<string?> GetThumbnailAsync(Timelapse timelapse, CancellationToken cancellationToken = default)
     {

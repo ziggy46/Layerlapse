@@ -18,7 +18,8 @@ public partial class TimelapsesViewModel(
     IVideoPlayer player,
     Func<string, string?, Task<string?>>? pickFolder = null,
     JsonSettingsStore? settings = null,
-    Action<string>? revealFolder = null) : ViewModelBase, IAsyncDisposable
+    Action<string>? revealFolder = null,
+    Func<string, string, string, Task<bool>>? confirmDelete = null) : ViewModelBase, IAsyncDisposable
 {
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _downloads;
@@ -106,6 +107,78 @@ public partial class TimelapsesViewModel(
 
     public bool ShowDownloadBar => IsDownloading || DownloadText is not null;
 
+    /// <summary>The user's "allow deleting" setting; the Delete button shows only when it is on.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
+    public partial bool AllowDelete { get; private set; }
+
+    /// <summary>Picks up changed settings (delete allowed, auto-download).</summary>
+    public async Task ApplySettingsAsync()
+    {
+        AllowDelete = settings is not null && (await settings.LoadAsync()).AllowDelete;
+    }
+
+    /// <summary>
+    /// Deletes one timelapse from the printer after a confirmation naming it. Only when allowed in Settings;
+    /// the library checks the setting and the path again.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanDelete))]
+    private async Task DeleteAsync(TimelapseItemViewModel item)
+    {
+        var allowed = settings is not null && (await settings.LoadAsync()).AllowDelete;
+        if (!allowed || _library is null || confirmDelete is null)
+        {
+            return;
+        }
+
+        var confirmed = await confirmDelete(
+            "Delete this timelapse from the printer?",
+            $"{item.Title} · {item.SizeText}\n{item.Timelapse.Name}\n\nThis removes the video and its thumbnail from the printer's storage for good. Download it first if you want to keep it.",
+            "Delete");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            await _library.DeleteAsync(item.Timelapse, allowed, _lifetime.Token);
+            _all.Remove(item);
+            Items.Remove(item);
+            TotalCount = _all.Count;
+            SelectedCount = _all.Count(i => i.IsSelected);
+            Status = $"Deleted {item.Timelapse.Name} · {CountText(_all.Count)}";
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            item.Error = "Could not delete: " + e.Message;
+        }
+    }
+
+    private bool CanDelete() => AllowDelete && !IsDownloading;
+
+    /// <summary>After a refresh: saves timelapses that finished since auto-download was turned on.</summary>
+    private async Task AutoDownloadAsync(TimelapseListing listing)
+    {
+        if (settings is null || IsDownloading)
+        {
+            return;
+        }
+
+        var current = await settings.LoadAsync();
+        if (!current.AutoDownloadEnabled || !Directory.Exists(current.AutoDownloadFolder))
+        {
+            return;
+        }
+
+        var fresh = AutoDownload.SelectNew(listing.Timelapses, current.AutoDownloadSince!.Value).Select(t => t.Name).ToHashSet();
+        var items = _all.Where(i => fresh.Contains(i.Timelapse.Name)).ToList();
+        if (items.Count > 0)
+        {
+            await DownloadAsync(items, current.AutoDownloadFolder, isAutomatic: true);
+        }
+    }
+
     [RelayCommand]
     private void SelectAll()
     {
@@ -147,9 +220,9 @@ public partial class TimelapsesViewModel(
     private bool CanDownloadOne() => !IsDownloading;
 
     /// <summary>Asks where to save, then downloads one file at a time with progress, skipping files already there.</summary>
-    private async Task DownloadAsync(IReadOnlyList<TimelapseItemViewModel> items)
+    private async Task DownloadAsync(IReadOnlyList<TimelapseItemViewModel> items, string? automaticFolder = null, bool isAutomatic = false)
     {
-        if (items.Count == 0 || pickFolder is null)
+        if (items.Count == 0 || (pickFolder is null && automaticFolder is null))
         {
             return;
         }
@@ -160,17 +233,21 @@ public partial class TimelapsesViewModel(
             return;
         }
 
-        var saved = settings is null ? new AppSettings() : await settings.LoadAsync();
-        var suggested = saved.LastDownloadFolder ?? LastDownloadFolder;
-        var folder = await pickFolder("Choose where to save timelapses", suggested);
+        var folder = automaticFolder;
         if (folder is null)
         {
-            return;
-        }
+            var saved = settings is null ? new AppSettings() : await settings.LoadAsync();
+            var suggested = saved.LastDownloadFolder ?? LastDownloadFolder;
+            folder = await pickFolder!("Choose where to save timelapses", suggested);
+            if (folder is null)
+            {
+                return;
+            }
 
-        if (settings is not null)
-        {
-            await settings.SaveAsync(saved with { LastDownloadFolder = folder });
+            if (settings is not null)
+            {
+                await settings.SaveAsync(saved with { LastDownloadFolder = folder });
+            }
         }
 
         _downloads = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
@@ -209,7 +286,7 @@ public partial class TimelapsesViewModel(
                 byName[result.Timelapse.Name].DownloadStatus = Describe(result);
             }
 
-            DownloadText = Summarize(results);
+            DownloadText = (isAutomatic ? "Auto-download: " : "") + Summarize(results);
             if (results.All(r => r.Outcome is not (DownloadOutcome.Failed or DownloadOutcome.Cancelled)))
             {
                 ClearSelection();
@@ -300,6 +377,7 @@ public partial class TimelapsesViewModel(
         {
             var listing = await _library.RefreshAsync(_lifetime.Token);
             Show(listing);
+            _ = AutoDownloadAsync(listing);
             Status = CountText(listing.Timelapses.Count) + (listing.Clock?.Source == ClockOffsetSource.ComputerTimeZone
                 ? " · durations (≈) are approximate and assume the printer uses this computer's time zone"
                 : " · durations (≈) are approximate");
