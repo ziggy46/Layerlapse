@@ -10,8 +10,10 @@ public interface IVideoPlayer
 }
 
 /// <summary>Opens the file in the operating system's default video player (the plan's fallback player).</summary>
-public sealed class DefaultAppVideoPlayer : IVideoPlayer
+public sealed class DefaultAppVideoPlayer(Func<ProcessStartInfo, Process?>? start = null) : IVideoPlayer
 {
+    private readonly Func<ProcessStartInfo, Process?> _start = start ?? Process.Start;
+
     public void Play(string localPath)
     {
         if (!File.Exists(localPath))
@@ -19,12 +21,15 @@ public sealed class DefaultAppVideoPlayer : IVideoPlayer
             throw new FileNotFoundException("The video is not on this computer.", localPath);
         }
 
-        var start = OperatingSystem.IsMacOS() ? new ProcessStartInfo("open") { ArgumentList = { localPath } }
+        var info = OperatingSystem.IsMacOS() ? new ProcessStartInfo("open") { ArgumentList = { localPath } }
             : OperatingSystem.IsLinux() ? new ProcessStartInfo("xdg-open") { ArgumentList = { localPath } }
             : new ProcessStartInfo(localPath) { UseShellExecute = true };
         try
         {
-            using var _ = Process.Start(start) ?? throw new InvalidOperationException("No video player started.");
+            // With the Windows shell, Process.Start returns null when the file was handed to an app that is
+            // already running or is a packaged app (such as Media Player). The video still opens, so a missing
+            // process is not an error; only a failure to start anything is.
+            using var _ = _start(info);
         }
         catch (System.ComponentModel.Win32Exception e)
         {

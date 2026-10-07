@@ -323,3 +323,36 @@ public sealed class PrinterSessionTests
         Assert.Single(printer.Connections);
     }
 }
+
+public sealed class DefaultAppVideoPlayerTests : IDisposable
+{
+    private readonly string _file = Path.Combine(Path.GetTempPath(), $"layerlapse-player-{Guid.NewGuid():N}.mp4");
+
+    public DefaultAppVideoPlayerTests() => File.WriteAllBytes(_file, [0]);
+
+    public void Dispose() => File.Delete(_file);
+
+    [Fact]
+    public void Handing_the_file_to_an_already_running_app_is_not_an_error()
+    {
+        // Windows: Process.Start returns null for shell launches that reuse an app (reported on 0.7.0).
+        var player = new Layerlapse.Core.Timelapses.DefaultAppVideoPlayer(_ => null);
+
+        player.Play(_file);
+    }
+
+    [Fact]
+    public void No_app_for_the_file_is_a_clear_error()
+    {
+        var player = new Layerlapse.Core.Timelapses.DefaultAppVideoPlayer(_ => throw new System.ComponentModel.Win32Exception(1155));
+
+        var error = Assert.Throws<InvalidOperationException>(() => player.Play(_file));
+        Assert.Contains("No app is set up", error.Message);
+    }
+
+    [Fact]
+    public void Missing_file_is_reported()
+    {
+        Assert.Throws<FileNotFoundException>(() => new Layerlapse.Core.Timelapses.DefaultAppVideoPlayer(_ => null).Play(_file + ".missing"));
+    }
+}

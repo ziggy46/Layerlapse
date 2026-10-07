@@ -4,7 +4,13 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>Layerlapse</AssemblyName>
     <RootNamespace>Layerlapse.App</RootNamespace>
+    <ApplicationIcon>Assets\layerlapse.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Window icon. The .icns (macOS bundle) and .png (Linux) are picked up by the release workflow. -->
+    <AvaloniaResource Include="Assets\layerlapse.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.3" />

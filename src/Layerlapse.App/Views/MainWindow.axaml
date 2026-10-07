@@ -9,6 +9,7 @@
         Width="960" Height="600" MinWidth="640" MinHeight="400"
         Background="{DynamicResource BackgroundBrush}"
         Foreground="{DynamicResource TextBrush}"
+        Icon="/Assets/layerlapse.ico"
         Title="Layerlapse">
 
   <Grid ColumnDefinitions="220,*">
