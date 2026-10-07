@@ -15,6 +15,26 @@
     <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
   </Style>
 
+  <!-- The window's content area, in every theme -->
+  <Style Selector="Border.window-frame">
+    <Setter Property="Background" Value="{DynamicResource BackgroundBrush}" />
+  </Style>
+  <!-- XP: blue window frame and rounded top corners (the system frame is off in the XP theme) -->
+  <Style Selector="Border.window-frame.xp-frame">
+    <Setter Property="BorderBrush" Value="{DynamicResource XpFrameBrush}" />
+    <Setter Property="BorderThickness" Value="3,0,3,3" />
+    <Setter Property="CornerRadius" Value="8,8,0,0" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+  <Style Selector="Border.xp-titlebar.square">
+    <Setter Property="CornerRadius" Value="0" />
+  </Style>
+
+  <!-- Destructive buttons, in every theme -->
+  <Style Selector="Button.danger">
+    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+  </Style>
+
   <!-- Type: XP's Tahoma at 12 px -->
   <Style Selector=":is(Window).xp">
     <Setter Property="FontFamily" Value="Tahoma, Segoe UI, Verdana, sans-serif" />
@@ -60,6 +80,12 @@
   </Style>
   <Style Selector=":is(Window).xp Button:not(.sidebar-printer):not(#PART_Button).accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="BorderBrush" Value="{DynamicResource XpButtonHoverBorderBrush}" />
+  </Style>
+  <Style Selector=":is(Window).xp Button.danger">
+    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+  </Style>
+  <Style Selector=":is(Window).xp Button.danger /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
   </Style>
   <Style Selector=":is(Window).xp Button:not(.sidebar-printer):not(#PART_Button).accent">
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />

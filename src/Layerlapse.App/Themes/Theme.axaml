@@ -89,6 +89,7 @@
         <GradientStop Offset="1" Color="#003DD7" />
       </LinearGradientBrush>
       <SolidColorBrush x:Key="XpTitleTextBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="XpFrameBrush" Color="#0846D8" />
       <Color x:Key="XpTitleShadowColor">#0F1089</Color>
       <LinearGradientBrush x:Key="XpCaptionButtonBrush" StartPoint="0%,0%" EndPoint="100%,100%">
         <GradientStop Offset="0" Color="#5B9AFF" />
