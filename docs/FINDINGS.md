@@ -332,7 +332,14 @@ repository) used `LibVLCSharp` 3.10.1, `LibVLCSharp.Avalonia` 3.10.1 and `VideoL
 - Timelapses are video only (`ffprobe` shows one H.264 stream and no audio), so any player only needs to show
   video.
 
-**Conclusion:** there is no usable LibVLC build for Apple Silicon Macs on NuGet. A built-in player would need
+**Conclusion:** there is no usable LibVLC build for Apple Silicon Macs on NuGet.
+
+**Owner's choice: OS-native players.** macOS is done: `MacVideoView` hosts AVKit's `AVPlayerView` (with the
+system's play button and scrubber) in a Layerlapse window, using Avalonia's `NativeControlHost` and a few
+Objective-C runtime calls. A throwaway launcher outside the repository opened the 5.4 MB timelapse, seeked
+to 1.0 s and then to 5.0 s, and the player reported 1.48 s and 5.49 s half a second after each seek. The
+two screenshots show different frames. Windows (Windows Media) and Linux (GStreamer) are not written yet;
+on those systems the app still opens the default player. A built-in player would need
 one of: libvlc and its plugins taken from VLC's own universal macOS app and packaged by us; an FFmpeg-based
 decoder drawing frames into the window; or each OS's own video API (AVFoundation, Windows Media, GStreamer).
 Each adds native code or packaging work per platform.

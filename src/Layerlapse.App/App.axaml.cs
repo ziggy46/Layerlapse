@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Layerlapse.App.Player;
 using Layerlapse.App.ViewModels;
 using Layerlapse.App.Views;
 using Layerlapse.Core.Credentials;
@@ -27,7 +28,8 @@ public partial class App : Application
                 JsonPrinterProfileStore.CreateDefault(),
                 connection => new BambuFtpsClient(connection),
                 discovery);
-            var main = new MainViewModel(new ConnectionViewModel(setup, discovery), setup);
+            var player = new BuiltInVideoPlayer(() => desktop.MainWindow);
+            var main = new MainViewModel(new ConnectionViewModel(setup, discovery), setup, player: player);
             desktop.MainWindow = new MainWindow { DataContext = main };
 
             // Reconnect to the last printer with no typing; the view shows progress and any error.

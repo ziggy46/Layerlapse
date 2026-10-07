@@ -200,4 +200,4 @@ Resolve these during milestones 1 to 3, and write the answers back into this doc
 - [x] Printer time zone setting: not now; the offset is measured from camera recordings (2026-10-07).
 - [x] Video cache cap: 2 GB, least recently used removed first (2026-10-07).
 - [x] Repository layout: exactly as planned, with no extra projects or scripts (2026-10-07).
-- [ ] Built-in player: the owner asked to try one. LibVLC has no Apple Silicon build on NuGet (see FINDINGS); choose how to proceed.
+- [x] Built-in player: OS-native players (2026-10-07). LibVLC has no Apple Silicon build on NuGet (see FINDINGS). macOS uses AVFoundation; Windows and Linux still open the default player until their players are written.
