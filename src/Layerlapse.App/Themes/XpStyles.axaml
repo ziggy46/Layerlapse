@@ -31,26 +31,16 @@
   </Style>
 
   <!-- Check box on each thumbnail: no backing panel in any theme. While unticked, the box itself is filled so
-       it stays visible on dark photos; ticked keeps the theme's own fill. (XP's rules further down win.) -->
+       it stays visible on dark photos; ticked keeps the theme's own fill. (XP's rules further down win.)
+       The box's size comes from the views (CheckBoxMinHeight 20); never squeeze the control itself, or Fluent
+       clips the box it centres in its row. -->
   <Style Selector="Border.thumb-check">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Padding" Value="0" />
   </Style>
-  <Style Selector="Border.thumb-check CheckBox">
-    <Setter Property="Width" Value="20" />
-    <Setter Property="MinWidth" Value="20" />
-    <Setter Property="MinHeight" Value="20" />
-    <Setter Property="Height" Value="20" />
-  </Style>
   <Style Selector="Border.thumb-check CheckBox:unchecked /template/ Border#NormalRectangle">
     <Setter Property="Background" Value="{DynamicResource CardBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource TextSecondaryBrush}" />
-  </Style>
-  <Style Selector=":is(Window).xp Border.thumb-check CheckBox">
-    <Setter Property="Width" Value="15" />
-    <Setter Property="MinWidth" Value="15" />
-    <Setter Property="Height" Value="15" />
-    <Setter Property="MinHeight" Value="15" />
   </Style>
 
   <!-- Destructive buttons, in every theme -->

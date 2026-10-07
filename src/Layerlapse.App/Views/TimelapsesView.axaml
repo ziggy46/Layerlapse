@@ -77,6 +77,10 @@
                   <Panel Height="124" Background="{DynamicResource PanelBrush}">
                     <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
                     <Border Classes="thumb-check" Margin="6" HorizontalAlignment="Left" VerticalAlignment="Top">
+                      <Border.Resources>
+                        <!-- Fluent centres the box in a row of this height; 20 fits the box exactly -->
+                        <x:Double x:Key="CheckBoxMinHeight">20</x:Double>
+                      </Border.Resources>
                       <CheckBox IsChecked="{Binding IsSelected}" MinWidth="0" Padding="0" ToolTip.Tip="Select for download" />
                     </Border>
                   </Panel>
