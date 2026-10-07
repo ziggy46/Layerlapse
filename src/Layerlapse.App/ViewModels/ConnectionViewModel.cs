@@ -1,6 +1,8 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Layerlapse.Core.Credentials;
+using Layerlapse.Core.Discovery;
 using Layerlapse.Core.Printers;
 using Layerlapse.Core.Setup;
 
@@ -23,16 +25,50 @@ public enum ConnectionState
 /// <summary>
 /// Printer connection: first-time setup, reconnecting to the saved printer at launch, and recovering from errors.
 /// </summary>
-public partial class ConnectionViewModel(PrinterSetupService setup) : ViewModelBase
+public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDiscovery? discovery = null) : ViewModelBase
 {
     private CancellationTokenSource? _work;
+    private CancellationTokenSource? _search;
+
+    /// <summary>Printers found by the last search, in the order found.</summary>
+    public ObservableCollection<DiscoveredPrinterItem> Discovered { get; } = [];
+
+    public bool HasDiscovered => Discovered.Count > 0;
+
+    public IReadOnlyList<string> ModelChoices => PrinterModels.All;
+
+    public bool CanSearch => discovery is not null;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SearchCommand))]
+    public partial bool IsSearching { get; private set; }
+
+    [ObservableProperty]
+    public partial string? SearchStatus { get; private set; }
+
+    /// <summary>Choosing a found printer fills in its address.</summary>
+    [ObservableProperty]
+    public partial DiscoveredPrinterItem? SelectedDiscovered { get; set; }
+
+    /// <summary>The model picked by the user when it could not be detected.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveModelCommand))]
+    public partial string? ChosenModel { get; set; }
+
+    partial void OnSelectedDiscoveredChanged(DiscoveredPrinterItem? value)
+    {
+        if (value is not null)
+        {
+            Host = value.Printer.Host;
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSetup), nameof(IsConnecting), nameof(IsConnected), nameof(IsFailed), nameof(IsCertificateChanged), nameof(StateLabel))]
     public partial ConnectionState State { get; private set; } = ConnectionState.Setup;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PrinterTitle), nameof(PrinterDetail), nameof(CanCancelEdit))]
+    [NotifyPropertyChangedFor(nameof(PrinterTitle), nameof(PrinterDetail), nameof(CanCancelEdit), nameof(ModelText), nameof(ShowModelLine), nameof(NeedsModelChoice), nameof(SerialText), nameof(FirmwareText), nameof(StateLabel))]
     public partial PrinterProfile? Profile { get; private set; }
 
     [ObservableProperty]
@@ -78,9 +114,21 @@ public partial class ConnectionViewModel(PrinterSetupService setup) : ViewModelB
     /// <summary>Editing an existing printer can be abandoned; first-time setup cannot.</summary>
     public bool CanCancelEdit => Profile is not null;
 
-    public string PrinterTitle => Profile is null ? "No printer" : Profile.Serial ?? Profile.Host;
+    public string PrinterTitle => Profile?.DisplayName ?? "No printer";
 
     public string PrinterDetail => Profile is null ? "" : Profile.Host;
+
+    public string ModelText => Profile?.Model ?? (Profile?.ModelCode is { } code ? $"Unknown model ({code})" : "Unknown model");
+
+    /// <summary>Hide the model line when the name already says it (the default name is the model).</summary>
+    public bool ShowModelLine => !string.Equals(PrinterTitle, ModelText, StringComparison.Ordinal);
+
+    public string? SerialText => Profile?.Serial is { } serial ? $"Serial {serial}" : null;
+
+    public string? FirmwareText => Profile?.Firmware is { } firmware ? $"Firmware {firmware}" : null;
+
+    /// <summary>Connected, but the model could not be detected: ask the user.</summary>
+    public bool NeedsModelChoice => Profile is not null && Profile.Model is null;
 
     public string CredentialStoreName => setup.Credentials.Name;
 
@@ -119,12 +167,74 @@ public partial class ConnectionViewModel(PrinterSetupService setup) : ViewModelB
         });
     }
 
+    /// <summary>Listens for printer announcements, then scans port 990 if none arrive.</summary>
+    [RelayCommand(CanExecute = nameof(CanStartSearch))]
+    private async Task SearchAsync()
+    {
+        if (discovery is null)
+        {
+            return;
+        }
+
+        _search?.Cancel();
+        _search = new CancellationTokenSource();
+        var token = _search.Token;
+        Discovered.Clear();
+        OnPropertyChanged(nameof(HasDiscovered));
+        SelectedDiscovered = null;
+        IsSearching = true;
+        SearchStatus = "Searching… this takes up to about 15 seconds.";
+        try
+        {
+            await foreach (var printer in discovery.DiscoverAsync(new DiscoveryOptions(), token))
+            {
+                Discovered.Add(new DiscoveredPrinterItem(printer));
+                OnPropertyChanged(nameof(HasDiscovered));
+            }
+
+            SearchStatus = Discovered.Count switch
+            {
+                0 => "No printers found. Check that the printer is on and on the same network, or enter its IP address below.",
+                1 => "Found 1 printer.",
+                var n => $"Found {n} printers. Choose yours.",
+            };
+            if (Discovered.Count == 1)
+            {
+                SelectedDiscovered = Discovered[0];
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            SearchStatus = null;
+        }
+        catch (DiscoveryException e)
+        {
+            SearchStatus = e.Message + " Enter the IP address below instead.";
+        }
+        finally
+        {
+            IsSearching = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSaveModel))]
+    private async Task SaveModelAsync()
+    {
+        if (Profile is { } profile && ChosenModel is { } model)
+        {
+            Profile = await setup.SetModelAsync(profile, model);
+            ChosenModel = null;
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanSubmit))]
     private async Task SaveAsync()
     {
+        _search?.Cancel();
+        var picked = SelectedDiscovered?.Printer is { } found && found.Host == Host.Trim() ? found : null;
         await RunAsync("Connecting…", async token =>
         {
-            var result = await setup.ConnectAndSaveAsync(Host, AccessCode, token);
+            var result = await setup.ConnectAndSaveAsync(Host, AccessCode, picked, null, token);
             AccessCode = "";
             Profile = result.Profile;
             Warning = result.Warning;
@@ -189,6 +299,10 @@ public partial class ConnectionViewModel(PrinterSetupService setup) : ViewModelB
 
     private bool IsIdle() => !IsBusy;
 
+    private bool CanStartSearch() => discovery is not null && !IsSearching;
+
+    private bool CanSaveModel() => ChosenModel is not null;
+
     private bool CanSubmit() => !IsBusy && Host.Trim().Length > 0 && AccessCode.Trim().Length > 0;
 
     private async Task ReconnectAsync()
@@ -206,6 +320,28 @@ public partial class ConnectionViewModel(PrinterSetupService setup) : ViewModelB
             Status = null;
             State = ConnectionState.Connected;
         });
+
+        if (IsConnected && Profile is { } connected)
+        {
+            _ = RefreshDetailsAsync(connected);
+        }
+    }
+
+    /// <summary>Picks up the printer's current name and firmware from its announcement, in the background.</summary>
+    private async Task RefreshDetailsAsync(PrinterProfile connected)
+    {
+        try
+        {
+            var refreshed = await setup.RefreshDetailsAsync(connected);
+            if (Profile?.Id == refreshed.Id && refreshed != connected)
+            {
+                Profile = Profile with { Name = refreshed.Name, Firmware = refreshed.Firmware, ModelCode = refreshed.ModelCode, Model = Profile.Model ?? refreshed.Model };
+            }
+        }
+        catch (Exception e) when (e is IOException or DiscoveryException or UnauthorizedAccessException)
+        {
+            // Details are optional; the connection already works.
+        }
     }
 
     private void ShowSetup()

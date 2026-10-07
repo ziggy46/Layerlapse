@@ -1,4 +1,5 @@
 using Layerlapse.Core.Credentials;
+using Layerlapse.Core.Discovery;
 using Layerlapse.Core.Printers;
 using Layerlapse.Core.Setup;
 
@@ -10,12 +11,13 @@ public sealed class PrinterSetupServiceTests : IDisposable
     private readonly FakePrinter _printer = new();
     private readonly InMemoryCredentialStore _credentials = new();
     private readonly JsonPrinterProfileStore _profiles;
+    private readonly FakeDiscovery _discovery = new();
     private readonly PrinterSetupService _service;
 
     public PrinterSetupServiceTests()
     {
         _profiles = new JsonPrinterProfileStore(Path.Combine(_folder, "printers.json"));
-        _service = new PrinterSetupService(_credentials, _profiles, _printer.Create);
+        _service = new PrinterSetupService(_credentials, _profiles, _printer.Create, _discovery);
     }
 
     public void Dispose()
@@ -37,6 +39,99 @@ public sealed class PrinterSetupServiceTests : IDisposable
         Assert.Equal(_printer.Fingerprint, result.Profile.PinnedFingerprint);
         Assert.Equal("12345678", await _credentials.GetAsync("00M000000000001"));
         Assert.Equal(result.Profile, await _profiles.GetLastAsync());
+    }
+
+    [Fact]
+    public async Task Saves_announced_model_name_and_firmware()
+    {
+        var result = await _service.ConnectAndSaveAsync("192.168.1.50", "12345678", FakeDiscovery.Announced(), null);
+
+        Assert.Equal("X1 Carbon", result.Profile.Model);
+        Assert.Equal("BL-P001", result.Profile.ModelCode);
+        Assert.Equal("Workshop X1C", result.Profile.Name);
+        Assert.Equal("01.12.00.00", result.Profile.Firmware);
+        Assert.Equal("Workshop X1C", result.Profile.DisplayName);
+    }
+
+    [Fact]
+    public async Task Manual_entry_takes_model_from_serial_prefix_or_users_choice()
+    {
+        Assert.Equal("X1 Carbon", (await _service.ConnectAndSaveAsync("192.168.1.50", "12345678")).Profile.Model);
+
+        _printer.Serial = "ZZZ000000000001";
+        Assert.Null((await _service.ConnectAndSaveAsync("192.168.1.50", "12345678")).Profile.Model);
+        Assert.Equal("P1S", (await _service.ConnectAndSaveAsync("192.168.1.50", "12345678", null, "P1S")).Profile.Model);
+    }
+
+    [Fact]
+    public async Task Ignores_announcement_details_for_a_different_printer()
+    {
+        var other = FakeDiscovery.Announced(serial: "00M999999999999", name: "Other");
+
+        var result = await _service.ConnectAndSaveAsync("192.168.1.50", "12345678", other, null);
+
+        Assert.Null(result.Profile.Name);
+        Assert.Null(result.Profile.ModelCode);
+    }
+
+    [Fact]
+    public async Task Reconnect_finds_a_printer_whose_address_changed()
+    {
+        var saved = (await _service.ConnectAndSaveAsync("192.168.1.50", "12345678")).Profile;
+        _printer.UnreachableHosts.Add("192.168.1.50");
+        _discovery.Printers.Add(FakeDiscovery.Announced(host: "192.168.1.77"));
+
+        var reconnected = await _service.ReconnectAsync(saved);
+
+        Assert.Equal("192.168.1.77", reconnected.Host);
+        Assert.Equal("Workshop X1C", reconnected.Name);
+        Assert.Equal("192.168.1.77", (await _profiles.GetLastAsync())!.Host);
+        Assert.Equal(saved.PinnedFingerprint, _printer.Connections[^1].PinnedFingerprint);
+    }
+
+    [Fact]
+    public async Task Moved_printer_must_still_present_the_pinned_certificate()
+    {
+        var saved = (await _service.ConnectAndSaveAsync("192.168.1.50", "12345678")).Profile;
+        _printer.UnreachableHosts.Add("192.168.1.50");
+        _printer.Fingerprint = new string('B', 64);
+        _discovery.Printers.Add(FakeDiscovery.Announced(host: "192.168.1.77"));
+
+        await Assert.ThrowsAsync<PrinterCertificateMismatchException>(() => _service.ReconnectAsync(saved));
+        Assert.Equal("192.168.1.50", (await _profiles.GetLastAsync())!.Host);
+    }
+
+    [Fact]
+    public async Task Reconnect_fills_in_a_missing_model_from_the_serial()
+    {
+        var saved = (await _service.ConnectAndSaveAsync("192.168.1.50", "12345678")).Profile with { Model = null };
+        await _profiles.SaveAsync(saved);
+
+        Assert.Equal("X1 Carbon", (await _service.ReconnectAsync(saved)).Model);
+    }
+
+    [Fact]
+    public async Task Refresh_takes_name_and_firmware_from_the_announcement_but_keeps_the_address()
+    {
+        var saved = (await _service.ConnectAndSaveAsync("192.168.1.50", "12345678")).Profile;
+        _discovery.Printers.Add(FakeDiscovery.Announced(host: "192.168.1.99"));
+
+        var refreshed = await _service.RefreshDetailsAsync(saved);
+
+        Assert.Equal("Workshop X1C", refreshed.Name);
+        Assert.Equal("01.12.00.00", refreshed.Firmware);
+        Assert.Equal("192.168.1.50", refreshed.Host);
+        Assert.Equal(refreshed, await _profiles.GetLastAsync());
+    }
+
+    [Fact]
+    public async Task Unreachable_and_not_announced_stays_unreachable()
+    {
+        var saved = (await _service.ConnectAndSaveAsync("192.168.1.50", "12345678")).Profile;
+        _printer.Reachable = false;
+
+        await Assert.ThrowsAsync<PrinterUnreachableException>(() => _service.ReconnectAsync(saved));
+        Assert.Equal(1, _discovery.Calls);
     }
 
     [Fact]

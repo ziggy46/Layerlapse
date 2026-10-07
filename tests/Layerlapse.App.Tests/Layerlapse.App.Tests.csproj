@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <Compile Include="..\Layerlapse.Core.Tests\FakePrinterClient.cs" Link="FakePrinterClient.cs" />
+    <Compile Include="..\Layerlapse.Core.Tests\FakeDiscovery.cs" Link="FakeDiscovery.cs" />
   </ItemGroup>
 
   <ItemGroup>

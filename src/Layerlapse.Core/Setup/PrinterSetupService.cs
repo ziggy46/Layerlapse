@@ -1,4 +1,5 @@
 using Layerlapse.Core.Credentials;
+using Layerlapse.Core.Discovery;
 using Layerlapse.Core.Printers;
 
 namespace Layerlapse.Core.Setup;
@@ -11,8 +12,12 @@ public sealed class PrinterSetupService(
     ICredentialStore credentials,
     IPrinterProfileStore profiles,
     Func<PrinterConnection, IPrinterClient> clientFactory,
+    IPrinterDiscovery? discovery = null,
     TimeProvider? timeProvider = null)
 {
+    /// <summary>How long to listen for a saved printer that moved to a new address.</summary>
+    public static readonly TimeSpan RediscoveryTime = TimeSpan.FromSeconds(8);
+
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
 
     public ICredentialStore Credentials => credentials;
@@ -62,7 +67,14 @@ public sealed class PrinterSetupService(
     /// This printer was saved before with a different certificate. Nothing is saved; the user must confirm
     /// with <see cref="TrustNewCertificateAsync"/>.
     /// </exception>
-    public async Task<PrinterSaveResult> ConnectAndSaveAsync(string host, string accessCode, CancellationToken cancellationToken = default)
+    public async Task<PrinterSaveResult> ConnectAndSaveAsync(string host, string accessCode, CancellationToken cancellationToken = default) =>
+        await ConnectAndSaveAsync(host, accessCode, null, null, cancellationToken);
+
+    /// <inheritdoc cref="ConnectAndSaveAsync(string, string, CancellationToken)"/>
+    /// <param name="discovered">The printer as discovered, when the user picked it from the list.</param>
+    /// <param name="chosenModel">The model the user picked, when it could not be detected.</param>
+    public async Task<PrinterSaveResult> ConnectAndSaveAsync(
+        string host, string accessCode, DiscoveredPrinter? discovered, string? chosenModel, CancellationToken cancellationToken = default)
     {
         var test = await TestAsync(host, accessCode, null, cancellationToken);
         var id = PrinterProfile.IdFor(test.Serial, test.Host);
@@ -72,7 +84,19 @@ public sealed class PrinterSetupService(
             throw new PrinterCertificateMismatchException(existing.PinnedFingerprint, test.Fingerprint);
         }
 
-        var profile = new PrinterProfile(id, test.Serial, test.Host, test.Fingerprint, _time.GetUtcNow());
+        var existingDetails = await profiles.GetAsync(id, cancellationToken);
+        var sameAnnouncement = discovered is not null && string.Equals(discovered.Serial, test.Serial, StringComparison.OrdinalIgnoreCase);
+        var profile = new PrinterProfile(
+            id,
+            test.Serial,
+            test.Host,
+            test.Fingerprint,
+            _time.GetUtcNow(),
+            // Announced model first, then the user's explicit choice, then the (mostly unverified) serial prefix table.
+            Model: (sameAnnouncement ? discovered!.Model : null) ?? chosenModel ?? PrinterModels.FromSerial(test.Serial) ?? existingDetails?.Model,
+            ModelCode: sameAnnouncement ? discovered!.ModelCode : existingDetails?.ModelCode,
+            Name: sameAnnouncement ? discovered!.Name : existingDetails?.Name,
+            Firmware: sameAnnouncement ? discovered!.Firmware : existingDetails?.Firmware);
         var warning = await SaveCodeAsync(profile.Id, accessCode.Trim(), cancellationToken);
         await profiles.SaveAsync(profile, cancellationToken);
         return new PrinterSaveResult(profile, warning);
@@ -104,10 +128,93 @@ public sealed class PrinterSetupService(
                     : "Access codes cannot be remembered on this system, so enter it again.");
         }
 
-        var test = await TestAsync(profile.Host, code, profile.PinnedFingerprint, cancellationToken);
-        var updated = profile with { LastConnected = _time.GetUtcNow(), Serial = test.Serial ?? profile.Serial };
+        PrinterTestResult test;
+        try
+        {
+            test = await TestAsync(profile.Host, code, profile.PinnedFingerprint, cancellationToken);
+        }
+        catch (PrinterUnreachableException) when (discovery is not null && profile.Serial is not null)
+        {
+            // The IP may have changed (DHCP, router swap). Find the printer by serial and try its new address.
+            // The pinned certificate still has to match, so a different device cannot take its place.
+            var moved = await FindBySerialAsync(profile.Serial, cancellationToken);
+            if (moved is null || moved.Host == profile.Host)
+            {
+                throw;
+            }
+
+            test = await TestAsync(moved.Host, code, profile.PinnedFingerprint, cancellationToken);
+            profile = profile.With(moved);
+        }
+
+        var serial = test.Serial ?? profile.Serial;
+        var updated = profile with
+        {
+            Host = test.Host,
+            LastConnected = _time.GetUtcNow(),
+            Serial = serial,
+            Model = profile.Model ?? PrinterModels.FromModelCode(profile.ModelCode) ?? PrinterModels.FromSerial(serial),
+        };
         await profiles.SaveAsync(updated, cancellationToken);
         return updated;
+    }
+
+    /// <summary>
+    /// Listens briefly for the printer's announcement and updates its name, firmware and model code.
+    /// Returns the profile unchanged if it is not heard. Keeps the address that just worked.
+    /// </summary>
+    public async Task<PrinterProfile> RefreshDetailsAsync(PrinterProfile profile, CancellationToken cancellationToken = default)
+    {
+        if (discovery is null || profile.Serial is null)
+        {
+            return profile;
+        }
+
+        if (await FindBySerialAsync(profile.Serial, cancellationToken) is not { } found)
+        {
+            return profile;
+        }
+
+        var updated = profile.With(found) with { Host = profile.Host };
+        if (updated == profile)
+        {
+            return profile;
+        }
+
+        // Save over the latest stored copy so a concurrent change (such as a model choice) is not lost.
+        var latest = await profiles.GetAsync(profile.Id, cancellationToken) ?? profile;
+        updated = latest.With(found) with { Host = latest.Host };
+        await profiles.SaveAsync(updated, cancellationToken);
+        return updated;
+    }
+
+    /// <summary>Records the model the user picked when it could not be detected.</summary>
+    public async Task<PrinterProfile> SetModelAsync(PrinterProfile profile, string model, CancellationToken cancellationToken = default)
+    {
+        var updated = profile with { Model = model };
+        await profiles.SaveAsync(updated, cancellationToken);
+        return updated;
+    }
+
+    private async Task<DiscoveredPrinter?> FindBySerialAsync(string serial, CancellationToken cancellationToken)
+    {
+        var options = new DiscoveryOptions { ListenDuration = RediscoveryTime, ScanIfNothingAnnounced = false, StopAtSerial = serial };
+        try
+        {
+            await foreach (var printer in discovery!.DiscoverAsync(options, cancellationToken))
+            {
+                if (string.Equals(printer.Serial, serial, StringComparison.OrdinalIgnoreCase))
+                {
+                    return printer;
+                }
+            }
+        }
+        catch (DiscoveryException)
+        {
+            // Listening failed (port in use); report the original unreachable error.
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -12,6 +12,10 @@
       <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
       <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
+    <Style Selector="TextBlock.section">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,16,0,4" />
+    </Style>
     <Style Selector="TextBlock.title">
       <Setter Property="FontSize" Value="16" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -36,15 +40,42 @@
   <Border Background="{DynamicResource CardBrush}"
           BorderBrush="{DynamicResource LineBrush}"
           BorderThickness="1" CornerRadius="4"
-          Padding="20" Width="440"
+          Padding="20" Width="480"
           HorizontalAlignment="Center" VerticalAlignment="Center">
     <StackPanel Spacing="4">
 
       <!-- First-time setup, or entering a new code -->
       <StackPanel IsVisible="{Binding IsSetup}" Spacing="0">
         <TextBlock Classes="title" Text="Connect to your printer" />
+
+        <!-- Discovery: explain the OS permission prompt before triggering it -->
+        <StackPanel IsVisible="{Binding CanSearch}">
+          <TextBlock Classes="secondary"
+                     Text="Layerlapse can find printers on your network. Your computer may ask for permission to find devices on the local network; choose Allow." />
+          <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
+            <Button Content="Find printers" Command="{Binding SearchCommand}" />
+            <ProgressBar IsIndeterminate="True" Width="80" VerticalAlignment="Center" IsVisible="{Binding IsSearching}" />
+          </StackPanel>
+          <TextBlock Classes="secondary" Margin="0,6,0,0" Text="{Binding SearchStatus}"
+                     IsVisible="{Binding SearchStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
+          <ListBox ItemsSource="{Binding Discovered}" SelectedItem="{Binding SelectedDiscovered}"
+                   IsVisible="{Binding HasDiscovered}" MaxHeight="180" Margin="0,8,0,0"
+                   BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:DiscoveredPrinterItem">
+                <StackPanel Spacing="1">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding ModelText}" IsVisible="{Binding ShowModelLine}" />
+                  <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock Classes="section" Text="Connect" />
+        </StackPanel>
+
         <TextBlock Classes="secondary"
-                   Text="On the printer screen, find the IP address under Settings, then Network, and the access code under Settings, then LAN Only Mode. LAN Only Mode does not need to be switched on." />
+                   Text="On the printer screen, the IP address is under Settings, then Network, and the access code under Settings, then LAN Only Mode. LAN Only Mode does not need to be switched on." />
 
         <TextBlock Classes="label" Text="IP address" />
         <TextBox Text="{Binding Host}" PlaceholderText="192.168.1.50" IsEnabled="{Binding !IsBusy}" />
@@ -74,8 +105,21 @@
           <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,0,8" />
           <TextBlock Classes="title" Text="Connected" />
         </StackPanel>
-        <TextBlock Text="{Binding PrinterTitle, StringFormat='Serial {0}'}" />
+        <TextBlock Text="{Binding PrinterTitle}" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding ModelText}" IsVisible="{Binding ShowModelLine}" />
+        <TextBlock Classes="secondary" Text="{Binding SerialText}" IsVisible="{Binding SerialText, Converter={x:Static ObjectConverters.IsNotNull}}" />
         <TextBlock Classes="secondary" Text="{Binding PrinterDetail}" />
+        <TextBlock Classes="secondary" Text="{Binding FirmwareText}" IsVisible="{Binding FirmwareText, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <!-- Model could not be detected: ask -->
+        <StackPanel IsVisible="{Binding NeedsModelChoice}" Margin="0,12,0,0" Spacing="6">
+          <TextBlock Text="Which model is this printer?" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ComboBox ItemsSource="{Binding ModelChoices}" SelectedItem="{Binding ChosenModel}" PlaceholderText="Choose model" MinWidth="160" />
+            <Button Content="Save" Command="{Binding SaveModelCommand}" />
+          </StackPanel>
+        </StackPanel>
+
         <TextBlock Classes="secondary" Margin="0,12,0,0" Text="Timelapse browsing is coming next." />
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button Content="Edit connection" Command="{Binding EditCommand}" />
@@ -86,7 +130,8 @@
       <!-- Saved printer unreachable -->
       <StackPanel IsVisible="{Binding IsFailed}" Spacing="2">
         <TextBlock Classes="title" Text="Could not connect" />
-        <TextBlock Text="{Binding PrinterTitle, StringFormat='Serial {0}'}" />
+        <TextBlock Text="{Binding PrinterTitle}" FontWeight="SemiBold" />
+        <TextBlock Classes="secondary" Text="{Binding SerialText}" IsVisible="{Binding SerialText, Converter={x:Static ObjectConverters.IsNotNull}}" />
         <TextBlock Classes="secondary" Text="{Binding PrinterDetail}" />
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button Classes="accent" Content="Try again" Command="{Binding RetryCommand}" />
@@ -100,7 +145,8 @@
               BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1" CornerRadius="4" Padding="12">
         <StackPanel Spacing="4">
           <TextBlock Classes="title" Text="Security certificate changed" Foreground="{DynamicResource DangerBrush}" />
-          <TextBlock Text="{Binding PrinterTitle, StringFormat='Serial {0}'}" />
+          <TextBlock Text="{Binding PrinterTitle}" FontWeight="SemiBold" />
+          <TextBlock Classes="secondary" Text="{Binding SerialText}" IsVisible="{Binding SerialText, Converter={x:Static ObjectConverters.IsNotNull}}" />
           <TextBlock Classes="secondary" Text="Only trust the new certificate if you reset this printer or replaced its storage. Otherwise, check that the address belongs to your printer." />
           <TextBlock Classes="label" Text="Trusted until now" />
           <TextBlock Classes="mono" Text="{Binding ExpectedFingerprint}" />

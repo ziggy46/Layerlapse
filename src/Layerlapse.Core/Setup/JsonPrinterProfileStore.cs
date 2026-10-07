@@ -13,6 +13,7 @@ public sealed class JsonPrinterProfileStore(string filePath) : IPrinterProfileSt
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        IgnoreReadOnlyProperties = true,
     };
 
     private readonly SemaphoreSlim _lock = new(1, 1);

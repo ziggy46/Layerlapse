@@ -179,6 +179,36 @@ Notes for the discovery module:
 - The USN serial equals the certificate CN, so a printer found by the port 990 fallback can be matched
   to a discovered one by serial.
 
+## 2026-10-07: milestone 3 (discovery)
+
+### Broadcast, not multicast
+
+The announcements go to **255.255.255.255:2021** (a limited broadcast), so listening needs only a UDP bind
+on port 2021 with broadcast enabled, and no multicast group membership:
+
+```bash
+python3 dst.py   # bind ("", 2021) with IP_RECVDSTADDR, no IP_ADD_MEMBERSHIP -> destination: 255.255.255.255
+```
+
+The listener sets `ReuseAddress` so it can share the port with other listeners. Whether it can run while
+Bambu Studio is open was **not tested** (Studio was not running).
+
+### Discovery results against the real printer
+
+| Method | Result | Test |
+| --- | --- | --- |
+| Announcement (UDP 2021) | Found in under 10 s: model code `BL-P001` → X1 Carbon, firmware 01.12.00.00, serial equal to the one from logging in | `Announcement_matches_the_logged_in_printer` |
+| Certificate probe on port 990 (TLS handshake only, no FTP command, no login) | Serial read from the certificate CN, issuer `BBL CA`, model X1 Carbon from the serial prefix | `Port_probe_reads_the_serial_without_logging_in` |
+| Subnet scan | 506 addresses (two local /24 networks, one of them OrbStack's) in 4.9 s, exactly one printer | `Subnet_scan_finds_the_printer` |
+| Real view | The headless render with real `PrinterDiscovery` shows the printer selected and its address filled in, with nothing typed | `Renders_real_discovery` |
+
+### Model table
+
+Only `BL-P001` and the serial prefix `00M` (both X1 Carbon) are verified. The other entries in
+`PrinterModels` (X1, X1E, P1P, P1S, A1, A1 mini, H2D codes and prefixes) come from community reports.
+Unknown codes or prefixes leave the model empty, and the app asks the user to pick it. The model is
+never taken from the printer's name, because the name is user-editable.
+
 ## 2026-10-06: milestone 2 (connection and credentials)
 
 ### What does a wrong access code look like? **`530` at `PASS`.**

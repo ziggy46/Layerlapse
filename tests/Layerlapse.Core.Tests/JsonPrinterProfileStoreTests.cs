@@ -59,6 +59,42 @@ public sealed class JsonPrinterProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Reads_files_written_before_model_fields_existed()
+    {
+        Directory.CreateDirectory(_folder);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "printers.json"), """
+            {
+              "lastPrinterId": "00M000000000001",
+              "printers": [
+                {
+                  "id": "00M000000000001",
+                  "serial": "00M000000000001",
+                  "host": "192.168.1.50",
+                  "pinnedFingerprint": "CCCC",
+                  "lastConnected": "2026-10-07T01:16:44.900793+00:00"
+                }
+              ]
+            }
+            """);
+
+        var profile = await Store().GetLastAsync();
+
+        Assert.NotNull(profile);
+        Assert.Null(profile.Model);
+        Assert.Equal("00M000000000001", profile.DisplayName);
+    }
+
+    [Fact]
+    public async Task Does_not_write_computed_display_name()
+    {
+        await Store().SaveAsync(Profile("A") with { Name = "Shop" });
+
+        var json = await File.ReadAllTextAsync(Path.Combine(_folder, "printers.json"));
+        Assert.DoesNotContain("displayName", json);
+        Assert.Contains("\"name\": \"Shop\"", json);
+    }
+
+    [Fact]
     public async Task Corrupt_file_reads_as_empty()
     {
         Directory.CreateDirectory(_folder);

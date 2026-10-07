@@ -21,7 +21,7 @@
       <DockPanel Margin="12">
         <StackPanel DockPanel.Dock="Top" Spacing="2">
           <TextBlock Text="Layerlapse" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
-          <TextBlock Text="{Binding Connection.PrinterTitle}" />
+          <TextBlock Text="{Binding Connection.PrinterTitle}" TextTrimming="CharacterEllipsis" />
           <TextBlock Text="{Binding Connection.StateLabel}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12" />
           <ListBox SelectedIndex="0" Background="Transparent">
             <ListBoxItem Content="Timelapses" />
@@ -39,7 +39,9 @@
       <TextBlock DockPanel.Dock="Bottom" Margin="0,0,0,12" HorizontalAlignment="Center" FontSize="12"
                  Text="Unofficial app. Not affiliated with Bambu Lab."
                  Foreground="{DynamicResource TextSecondaryBrush}" />
-      <ContentControl Content="{Binding Connection}" Margin="24" />
+      <ScrollViewer>
+        <ContentControl Content="{Binding Connection}" Margin="24" />
+      </ScrollViewer>
     </DockPanel>
 
   </Grid>

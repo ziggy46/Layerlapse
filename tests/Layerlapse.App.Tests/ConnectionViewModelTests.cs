@@ -11,6 +11,7 @@ public sealed class ConnectionViewModelTests : IDisposable
     private readonly FakePrinter _printer = new();
     private readonly InMemoryCredentialStore _credentials = new();
     private readonly JsonPrinterProfileStore _profiles;
+    private readonly FakeDiscovery _discovery = new();
 
     public ConnectionViewModelTests()
     {
@@ -26,7 +27,8 @@ public sealed class ConnectionViewModelTests : IDisposable
     }
 
     /// <summary>A fresh view model over the same stores, like relaunching the app.</summary>
-    private ConnectionViewModel Launch() => new(new PrinterSetupService(_credentials, _profiles, _printer.Create));
+    private ConnectionViewModel Launch() =>
+        new(new PrinterSetupService(_credentials, _profiles, _printer.Create, _discovery), _discovery);
 
     private async Task<ConnectionViewModel> SetUpOnceAsync()
     {
@@ -58,7 +60,8 @@ public sealed class ConnectionViewModelTests : IDisposable
         Assert.True(vm.IsConnected);
         Assert.Equal("", vm.AccessCode);
         Assert.Null(vm.Error);
-        Assert.Equal("00M000000000001", vm.PrinterTitle);
+        Assert.Equal("X1 Carbon", vm.PrinterTitle); // no name announced, so the model (from the serial prefix)
+        Assert.Equal("Serial 00M000000000001", vm.SerialText);
     }
 
     [Fact]
@@ -178,6 +181,76 @@ public sealed class ConnectionViewModelTests : IDisposable
         var relaunched = Launch();
         await relaunched.InitializeAsync();
         Assert.True(relaunched.IsConnected);
+    }
+
+    [Fact]
+    public async Task One_printer_found_is_preselected_and_fills_the_address()
+    {
+        _discovery.Printers.Add(FakeDiscovery.Announced());
+        var vm = Launch();
+        await vm.InitializeAsync();
+
+        await vm.SearchCommand.ExecuteAsync(null);
+
+        Assert.Equal("Found 1 printer.", vm.SearchStatus);
+        Assert.Same(vm.Discovered[0], vm.SelectedDiscovered);
+        Assert.Equal("192.168.1.50", vm.Host);
+
+        vm.AccessCode = _printer.AccessCode;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.True(vm.IsConnected);
+        Assert.Equal("Workshop X1C", vm.PrinterTitle);
+        Assert.Equal("X1 Carbon", vm.ModelText);
+        Assert.Equal("Firmware 01.12.00.00", vm.FirmwareText);
+        Assert.False(vm.NeedsModelChoice);
+    }
+
+    [Fact]
+    public async Task Several_printers_found_lets_the_user_pick()
+    {
+        _discovery.Printers.Add(FakeDiscovery.Announced(serial: "00M999999999999", host: "192.168.1.60", name: "Other"));
+        _discovery.Printers.Add(FakeDiscovery.Announced());
+        var vm = Launch();
+        await vm.InitializeAsync();
+
+        await vm.SearchCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, vm.Discovered.Count);
+        Assert.Null(vm.SelectedDiscovered);
+        Assert.Contains("Choose yours", vm.SearchStatus);
+
+        vm.SelectedDiscovered = vm.Discovered[1];
+        Assert.Equal("192.168.1.50", vm.Host);
+    }
+
+    [Fact]
+    public async Task Nothing_found_points_to_manual_entry()
+    {
+        var vm = Launch();
+        await vm.InitializeAsync();
+
+        await vm.SearchCommand.ExecuteAsync(null);
+
+        Assert.False(vm.HasDiscovered);
+        Assert.Contains("enter its IP address", vm.SearchStatus);
+    }
+
+    [Fact]
+    public async Task Unknown_model_asks_the_user_and_remembers_the_answer()
+    {
+        _printer.Serial = "ZZZ000000000001";
+        var vm = await SetUpOnceAsync();
+        Assert.True(vm.NeedsModelChoice);
+        Assert.False(vm.SaveModelCommand.CanExecute(null));
+
+        vm.ChosenModel = "P1S";
+        await vm.SaveModelCommand.ExecuteAsync(null);
+
+        Assert.False(vm.NeedsModelChoice);
+        Assert.Equal("P1S", vm.ModelText);
+        var relaunched = Launch();
+        await relaunched.InitializeAsync();
+        Assert.Equal("P1S", relaunched.ModelText);
     }
 
     [Fact]

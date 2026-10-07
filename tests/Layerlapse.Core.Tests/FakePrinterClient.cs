@@ -13,6 +13,9 @@ internal sealed class FakePrinter
 
     public bool Reachable { get; set; } = true;
 
+    /// <summary>Addresses where nothing answers (to simulate the printer moving).</summary>
+    public HashSet<string> UnreachableHosts { get; } = [];
+
     /// <summary>Thrown after the TLS handshake, like a dropped connection or an unexpected FTP reply.</summary>
     public Exception? ConnectFailure { get; set; }
 
@@ -32,7 +35,7 @@ internal sealed class FakePrinter
 
         public Task ConnectAsync(CancellationToken cancellationToken = default)
         {
-            if (!printer.Reachable)
+            if (!printer.Reachable || printer.UnreachableHosts.Contains(connection.Host))
             {
                 throw new PrinterUnreachableException(connection.Host);
             }

@@ -4,6 +4,7 @@ using Avalonia.Threading;
 using Layerlapse.App.ViewModels;
 using Layerlapse.App.Views;
 using Layerlapse.Core.Credentials;
+using Layerlapse.Core.Discovery;
 using Layerlapse.Core.Printers;
 using Layerlapse.Core.Setup;
 using Layerlapse.Core.Tests;
@@ -53,18 +54,27 @@ public sealed class RenderConnectionStatesTests : IDisposable
     public async Task Renders_every_state()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(HeadlessApp));
-        var printer = new FakePrinter();
+        var printer = new FakePrinter { Serial = "ZZZ000000000001" };
+        var fakeDiscovery = new FakeDiscovery();
+        fakeDiscovery.Printers.Add(FakeDiscovery.Announced(serial: "00M999999999999", host: "192.168.1.60", name: "Garage"));
+        fakeDiscovery.Printers.Add(FakeDiscovery.Announced(serial: "01P000000000002", host: "192.168.1.61", modelCode: "C12", name: null));
         var credentials = new InMemoryCredentialStore();
         var profiles = new JsonPrinterProfileStore(Path.Combine(_folder, "printers.json"));
-        ConnectionViewModel Launch() => new(new PrinterSetupService(credentials, profiles, printer.Create));
+        ConnectionViewModel Launch() => new(new PrinterSetupService(credentials, profiles, printer.Create, fakeDiscovery), fakeDiscovery);
 
         await session.Dispatch(async () =>
         {
             var setupVm = Launch();
             await setupVm.InitializeAsync();
+            await setupVm.SearchCommand.ExecuteAsync(null);
+            Render(setupVm, "several-found", light: false);
+            setupVm.SelectedDiscovered = null;
             setupVm.Host = "192.168.1.50";
             setupVm.AccessCode = printer.AccessCode;
             await setupVm.SaveCommand.ExecuteAsync(null);
+            Render(setupVm, "connected-model-unknown", light: false);
+            setupVm.ChosenModel = "P1S";
+            await setupVm.SaveModelCommand.ExecuteAsync(null);
             Render(setupVm, "connected-dark", light: false);
             Render(setupVm, "connected-light", light: true);
 
@@ -109,8 +119,49 @@ public sealed class RenderConnectionStatesTests : IDisposable
         }, CancellationToken.None);
     }
 
-    private static void Render(ConnectionViewModel connection, string name, bool light)
+    /// <summary>Acceptance check: the real printer appears in the real view with no IP typed.</summary>
+    [RenderFact]
+    public async Task Renders_real_discovery()
     {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(HeadlessApp));
+        var discovery = new PrinterDiscovery();
+        var profiles = new JsonPrinterProfileStore(Path.Combine(_folder, "printers.json"));
+        var service = new PrinterSetupService(new InMemoryCredentialStore(), profiles, c => new BambuFtpsClient(c), discovery);
+
+        await session.Dispatch(async () =>
+        {
+            var vm = new ConnectionViewModel(service, discovery);
+            await vm.InitializeAsync();
+            await vm.SearchCommand.ExecuteAsync(null);
+            Assert.NotEmpty(vm.Discovered);
+            Assert.NotNull(vm.SelectedDiscovered);
+            Assert.False(string.IsNullOrEmpty(vm.Host));
+            Render(vm, "real-discovery", light: false, redact: true);
+            return 0;
+        }, CancellationToken.None);
+    }
+
+    private static void Render(ConnectionViewModel connection, string name, bool light, bool redact = false)
+    {
+        if (redact)
+        {
+            // Keep the real address and serial out of saved screenshots.
+            var real = connection.Discovered.Select(d => d.Printer).ToList();
+            var selected = connection.SelectedDiscovered is not null;
+            connection.Discovered.Clear();
+            foreach (var p in real)
+            {
+                connection.Discovered.Add(new DiscoveredPrinterItem(p with { Host = "192.168.x.x", Serial = p.Serial[..3] + "…" }));
+            }
+
+            connection.Host = "192.168.x.x";
+            if (selected)
+            {
+                connection.SelectedDiscovered = connection.Discovered[0];
+                connection.Host = "192.168.x.x";
+            }
+        }
+
         Application.Current!.RequestedThemeVariant = light ? Avalonia.Styling.ThemeVariant.Light : Avalonia.Styling.ThemeVariant.Dark;
         var window = new MainWindow { DataContext = new MainViewModel(connection) { IsLightTheme = light } };
         window.Show();

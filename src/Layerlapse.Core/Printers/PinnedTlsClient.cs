@@ -48,6 +48,18 @@ internal sealed class PinnedTlsClient : DefaultTlsClient
 
     public static string Fingerprint(byte[] derCertificate) => Convert.ToHexString(SHA256.HashData(derCertificate));
 
+    private static string? Issuer(byte[] derCertificate)
+    {
+        try
+        {
+            return new Org.BouncyCastle.X509.X509Certificate(derCertificate).IssuerDN.ToString();
+        }
+        catch (Exception e) when (e is ArgumentException or Org.BouncyCastle.Security.Certificates.CertificateException or IOException)
+        {
+            return null;
+        }
+    }
+
     private static string? CommonName(byte[] derCertificate)
     {
         try
@@ -72,7 +84,7 @@ internal sealed class PinnedTlsClient : DefaultTlsClient
             }
 
             var der = chain.GetCertificateAt(0).GetEncoded();
-            if (!acceptCertificate(new PrinterCertificate(Fingerprint(der), CommonName(der))))
+            if (!acceptCertificate(new PrinterCertificate(Fingerprint(der), CommonName(der), Issuer(der))))
             {
                 throw new TlsFatalAlert(AlertDescription.bad_certificate);
             }
