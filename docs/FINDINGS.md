@@ -299,6 +299,9 @@ path (`TimelapseLibrary` → cache → `DefaultAppVideoPlayer`; `Layerlapse.Spik
 curl's copy (SHA-256 `CEF5DE73…`), decoded at 3.4 s with `ffmpeg -ss 3.4`, and opened in the default player
 (IINA on this Mac). Seeking in the player itself was not exercised by Claude, which cannot click IINA.
 
+Live check (2026-10-07): in the rebuilt app the owner clicked Play on a card, the video opened in IINA,
+and seeking worked. Milestone 4's acceptance line holds on macOS.
+
 The built-in player (LibVLCSharp) is not used yet: `LibVLCSharp.Avalonia` 3.10.1 depends on Avalonia
 11.3.13 or later, and this app is on Avalonia 12, so it would need testing. Its native packages also add about
 100 MB per platform. The plan's fallback, the OS default player, is used instead.
