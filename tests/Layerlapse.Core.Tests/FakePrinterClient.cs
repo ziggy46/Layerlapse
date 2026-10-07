@@ -13,6 +13,9 @@ internal sealed class FakePrinter
 
     public bool Reachable { get; set; } = true;
 
+    /// <summary>Thrown after the TLS handshake, like a dropped connection or an unexpected FTP reply.</summary>
+    public Exception? ConnectFailure { get; set; }
+
     public List<PrinterConnection> Connections { get; } = [];
 
     public IPrinterClient Create(PrinterConnection connection)
@@ -36,6 +39,11 @@ internal sealed class FakePrinter
 
             CertificateFingerprint = printer.Fingerprint;
             Serial = printer.Serial;
+            if (printer.ConnectFailure is { } failure)
+            {
+                throw failure;
+            }
+
             if (connection.PinnedFingerprint is not null && connection.PinnedFingerprint != printer.Fingerprint)
             {
                 throw new PrinterCertificateMismatchException(connection.PinnedFingerprint, printer.Fingerprint);

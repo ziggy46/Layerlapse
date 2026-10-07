@@ -90,6 +90,32 @@ public sealed class PrinterSetupServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Saving_a_known_printer_with_a_changed_certificate_needs_trust()
+    {
+        await _service.ConnectAndSaveAsync("192.168.1.50", "12345678");
+        _printer.Fingerprint = new string('B', 64);
+        _printer.AccessCode = "87654321"; // factory reset changes both
+
+        await Assert.ThrowsAsync<PrinterCertificateMismatchException>(() => _service.ConnectAndSaveAsync("192.168.1.50", "87654321"));
+        var profile = (await _profiles.GetLastAsync())!;
+        Assert.Equal(new string('A', 64), profile.PinnedFingerprint);
+        Assert.Equal("12345678", await _credentials.GetAsync(profile.Id));
+
+        var trusted = await _service.TrustNewCertificateAsync(profile, "87654321");
+        Assert.Equal(new string('B', 64), trusted.PinnedFingerprint);
+        Assert.Equal("87654321", await _credentials.GetAsync(profile.Id));
+    }
+
+    [Fact]
+    public async Task Unexpected_io_errors_become_connection_errors()
+    {
+        _printer.ConnectFailure = new IOException("The printer closed the connection.");
+
+        var error = await Assert.ThrowsAsync<PrinterConnectionException>(() => _service.TestAsync("192.168.1.50", "12345678"));
+        Assert.Contains("closed the connection", error.Message);
+    }
+
+    [Fact]
     public async Task Reconnect_without_stored_code_asks_for_it()
     {
         var saved = (await _service.ConnectAndSaveAsync("192.168.1.50", "12345678")).Profile;

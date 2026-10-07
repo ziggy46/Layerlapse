@@ -158,7 +158,8 @@ public partial class ConnectionViewModel(PrinterSetupService setup) : ViewModelB
 
         await RunAsync("Trusting the new certificate…", async token =>
         {
-            Profile = await setup.TrustNewCertificateAsync(profile, token);
+            Profile = await setup.TrustNewCertificateAsync(profile, AccessCode, token);
+            AccessCode = "";
             ExpectedFingerprint = ActualFingerprint = null;
             Status = "The new certificate is now trusted.";
             State = ConnectionState.Connected;
@@ -255,6 +256,11 @@ public partial class ConnectionViewModel(PrinterSetupService setup) : ViewModelB
         catch (OperationCanceledException)
         {
             Status = null;
+        }
+        catch (Exception e)
+        {
+            // Safety net: never leave the spinner running. Expected failures are handled above.
+            Fail("Something went wrong: " + e.Message, Profile is null ? ConnectionState.Setup : ConnectionState.Failed);
         }
         finally
         {

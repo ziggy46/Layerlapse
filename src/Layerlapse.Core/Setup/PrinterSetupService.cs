@@ -34,7 +34,15 @@ public sealed class PrinterSetupService(
         }
 
         await using var client = clientFactory(new PrinterConnection(host, accessCode, pinnedFingerprint));
-        await client.ConnectAsync(cancellationToken);
+        try
+        {
+            await client.ConnectAsync(cancellationToken);
+        }
+        catch (IOException e) when (e is not PrinterConnectionException)
+        {
+            throw new PrinterConnectionException("The connection to the printer failed: " + e.Message, e);
+        }
+
         try
         {
             await client.ListAsync("/", cancellationToken);
@@ -50,10 +58,21 @@ public sealed class PrinterSetupService(
     /// <summary>
     /// Tests the connection and, if it works, saves the code to the credential store and pins the certificate.
     /// </summary>
+    /// <exception cref="PrinterCertificateMismatchException">
+    /// This printer was saved before with a different certificate. Nothing is saved; the user must confirm
+    /// with <see cref="TrustNewCertificateAsync"/>.
+    /// </exception>
     public async Task<PrinterSaveResult> ConnectAndSaveAsync(string host, string accessCode, CancellationToken cancellationToken = default)
     {
         var test = await TestAsync(host, accessCode, null, cancellationToken);
-        var profile = new PrinterProfile(PrinterProfile.IdFor(test.Serial, test.Host), test.Serial, test.Host, test.Fingerprint, _time.GetUtcNow());
+        var id = PrinterProfile.IdFor(test.Serial, test.Host);
+        if (await profiles.GetAsync(id, cancellationToken) is { } existing
+            && !string.Equals(existing.PinnedFingerprint, test.Fingerprint, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new PrinterCertificateMismatchException(existing.PinnedFingerprint, test.Fingerprint);
+        }
+
+        var profile = new PrinterProfile(id, test.Serial, test.Host, test.Fingerprint, _time.GetUtcNow());
         var warning = await SaveCodeAsync(profile.Id, accessCode.Trim(), cancellationToken);
         await profiles.SaveAsync(profile, cancellationToken);
         return new PrinterSaveResult(profile, warning);
@@ -93,13 +112,25 @@ public sealed class PrinterSetupService(
 
     /// <summary>
     /// After the user has confirmed a certificate change: log in without the old pin and pin the new certificate.
+    /// Uses <paramref name="newAccessCode"/> when given (after a factory reset the code changes too) and saves it.
     /// </summary>
-    public async Task<PrinterProfile> TrustNewCertificateAsync(PrinterProfile profile, CancellationToken cancellationToken = default)
+    public async Task<PrinterProfile> TrustNewCertificateAsync(PrinterProfile profile, string? newAccessCode = null, CancellationToken cancellationToken = default)
     {
-        var code = await credentials.GetAsync(profile.Id, cancellationToken)
-            ?? throw new AccessCodeMissingException("Enter the access code again to trust the new certificate.");
-        var test = await TestAsync(profile.Host, code, null, cancellationToken);
-        var updated = profile with { PinnedFingerprint = test.Fingerprint, Serial = test.Serial ?? profile.Serial, LastConnected = _time.GetUtcNow() };
+        var host = profile.Host;
+        var code = newAccessCode?.Trim();
+        if (string.IsNullOrEmpty(code))
+        {
+            code = await credentials.GetAsync(profile.Id, cancellationToken)
+                ?? throw new AccessCodeMissingException("Enter the access code again to trust the new certificate.");
+        }
+
+        var test = await TestAsync(host, code, null, cancellationToken);
+        if (!string.IsNullOrEmpty(newAccessCode))
+        {
+            await SaveCodeAsync(profile.Id, code, cancellationToken);
+        }
+
+        var updated = profile with { Host = test.Host, PinnedFingerprint = test.Fingerprint, Serial = test.Serial ?? profile.Serial, LastConnected = _time.GetUtcNow() };
         await profiles.SaveAsync(updated, cancellationToken);
         return updated;
     }

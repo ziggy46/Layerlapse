@@ -142,6 +142,45 @@ public sealed class ConnectionViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Unexpected_failure_never_leaves_the_spinner_running()
+    {
+        await SetUpOnceAsync();
+        _printer.ConnectFailure = new InvalidOperationException("boom");
+
+        var vm = Launch();
+        await vm.InitializeAsync();
+
+        Assert.True(vm.IsFailed);
+        Assert.False(vm.IsBusy);
+        Assert.Contains("boom", vm.Error);
+    }
+
+    [Fact]
+    public async Task Factory_reset_recovers_through_edit_and_trust()
+    {
+        await SetUpOnceAsync();
+        _printer.Fingerprint = new string('B', 64);
+        _printer.AccessCode = "87654321";
+
+        var vm = Launch();
+        await vm.InitializeAsync();
+        Assert.True(vm.IsCertificateChanged);
+
+        vm.EditCommand.Execute(null);
+        vm.AccessCode = "87654321";
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.True(vm.IsCertificateChanged); // a known printer's new certificate still needs confirming
+
+        await vm.TrustCertificateCommand.ExecuteAsync(null);
+        Assert.True(vm.IsConnected);
+        Assert.Equal("", vm.AccessCode);
+
+        var relaunched = Launch();
+        await relaunched.InitializeAsync();
+        Assert.True(relaunched.IsConnected);
+    }
+
+    [Fact]
     public async Task Test_does_not_save()
     {
         var vm = Launch();

@@ -32,6 +32,9 @@ public sealed class JsonPrinterProfileStore(string filePath) : IPrinterProfileSt
         return file.Printers.FirstOrDefault(p => p.Id == file.LastPrinterId);
     }
 
+    public async Task<PrinterProfile?> GetAsync(string id, CancellationToken cancellationToken = default) =>
+        (await ReadAsync(cancellationToken)).Printers.FirstOrDefault(p => p.Id == id);
+
     public async Task SaveAsync(PrinterProfile profile, CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);
