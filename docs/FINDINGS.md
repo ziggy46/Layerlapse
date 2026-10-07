@@ -238,6 +238,14 @@ Bambu Studio is open was **not tested** (Studio was not running).
 | Subnet scan | 506 addresses (two local /24 networks, one of them OrbStack's) in 4.9 s, exactly one printer | `Subnet_scan_finds_the_printer` |
 | Real view | The headless render with real `PrinterDiscovery` shows the printer selected and its address filled in, with nothing typed | `Renders_real_discovery` |
 
+### Live check on macOS (2026-10-07)
+
+After rebuilding the bundle, the first launch asked for Keychain access as predicted for an ad-hoc signed
+build; the owner chose Always Allow, and later launches of that build did not ask again. The owner did not
+report a Local Network prompt. Without any input, the app reconnected and the background refresh filled
+`printers.json` with `model: X1 Carbon`, `modelCode: BL-P001`, `name: X1 Carbon` and
+`firmware: 01.12.00.00`, which the Connected screen shows.
+
 ### Model table
 
 Only `BL-P001` and the serial prefix `00M` (both X1 Carbon) are verified. The other entries in
