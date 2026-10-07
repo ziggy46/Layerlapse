@@ -223,7 +223,7 @@ public class UpdateCheckerTests
     }
 
     [Fact]
-    public void Knows_its_own_version() => Assert.Equal(new Version(0, 7, 1), UpdateChecker.CurrentVersion);
+    public void Knows_its_own_version() => Assert.Equal(new Version(0, 8, 0), UpdateChecker.CurrentVersion);
 }
 
 public sealed class SettingsTests : IDisposable
