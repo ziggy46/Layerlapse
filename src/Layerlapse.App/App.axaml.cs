@@ -23,6 +23,15 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+#if DEBUG
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { Args: { } args } playerOnly
+            && DebugPlayer(args) is { } playerWindow)
+        {
+            playerOnly.MainWindow = playerWindow;
+            base.OnFrameworkInitializationCompleted();
+            return;
+        }
+#endif
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var discovery = new PrinterDiscovery();
@@ -63,6 +72,32 @@ public partial class App : Application
 
         base.OnFrameworkInitializationCompleted();
     }
+
+#if DEBUG
+    /// <summary>
+    /// Development builds only: <c>--play &lt;video&gt; [--seek &lt;seconds&gt;]</c> opens just the player window
+    /// (seeking 3 s after it opens), so the players can be checked on build machines without clicking.
+    /// </summary>
+    private static Window? DebugPlayer(string[] args)
+    {
+        var play = Array.IndexOf(args, "--play");
+        if (play < 0 || play + 1 >= args.Length)
+        {
+            return null;
+        }
+
+        var window = Player.BuiltInVideoPlayer.CreateWindow(Path.GetFullPath(args[play + 1]));
+        var seek = Array.IndexOf(args, "--seek");
+        if (window is not null && seek >= 0 && seek + 1 < args.Length
+            && double.TryParse(args[seek + 1], System.Globalization.CultureInfo.InvariantCulture, out var seconds))
+        {
+            window.Opened += (_, _) => Avalonia.Threading.DispatcherTimer.RunOnce(
+                () => (window.Video as Player.IPlaybackView)?.Seek(seconds), TimeSpan.FromSeconds(3));
+        }
+
+        return window;
+    }
+#endif
 
     private static ICredentialStore CreateCredentialStore()
     {

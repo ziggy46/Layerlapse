@@ -38,7 +38,8 @@ and every version is on the [releases page](https://github.com/ziggy46/Layerlaps
   Linux Secret Service) and reconnects at launch. The printer's certificate is pinned on first connect, and the
   app warns if it changes.
 - **Timelapses:** a grid with thumbnails, start time, size and approximate print time, newest first, with a
-  date filter. Plays inside the app on macOS (other systems use the default video player).
+  date filter. Plays inside the app with the system's own video support (AVFoundation on macOS, Media Foundation on
+  Windows, GStreamer on Linux), or in your default video player.
 - **Models:** every `.3mf` project on the printer, with its preview, the slicer's print time, weight and
   filament, search by name, and "Open in Bambu Studio" after downloading. Previews are read from inside the
   files without downloading them.
@@ -66,7 +67,8 @@ and asks for confirmation each time. It never touches models, certificates or ot
   adds a Start menu entry and an uninstaller. The portable `.zip` runs without installing.
 - **macOS:** open the `.dmg` for Apple Silicon (`osx-arm64`) or Intel (`osx-x64`) and drag Layerlapse to
   Applications.
-- **Linux:** extract the `.tar.gz` and run `Layerlapse`.
+- **Linux:** extract the `.tar.gz` and run `Layerlapse`. To play timelapses inside the app, install GStreamer's
+  H.264 decoder (`sudo apt install gstreamer1.0-libav` on Debian and Ubuntu).
 
 Builds are not signed yet:
 - **macOS:** the first time, right-click the app and choose Open. macOS asks for Keychain access after each

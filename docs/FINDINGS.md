@@ -338,8 +338,7 @@ repository) used `LibVLCSharp` 3.10.1, `LibVLCSharp.Avalonia` 3.10.1 and `VideoL
 system's play button and scrubber) in a Layerlapse window, using Avalonia's `NativeControlHost` and a few
 Objective-C runtime calls. A throwaway launcher outside the repository opened the 5.4 MB timelapse, seeked
 to 1.0 s and then to 5.0 s, and the player reported 1.48 s and 5.49 s half a second after each seek. The
-two screenshots show different frames. Windows (Windows Media) and Linux (GStreamer) are not written yet;
-on those systems the app still opens the default player. A built-in player would need
+two screenshots show different frames. Windows and Linux followed later the same day (see below). A built-in player would need
 one of: libvlc and its plugins taken from VLC's own universal macOS app and packaged by us; an FFmpeg-based
 decoder drawing frames into the window; or each OS's own video API (AVFoundation, Windows Media, GStreamer).
 Each adds native code or packaging work per platform.
@@ -516,3 +515,24 @@ on when the certificate secrets listed in the workflow are added.
   printer appeared idle during these runs (its last camera recording was from 2026-10-04).
 - Whether FluentFTP works on Windows: SChannel may resume TLS sessions there. Not tested, and moot
   unless we want two code paths.
+
+## 2026-10-07: built-in players for Windows and Linux
+
+Both host the system's video support in a `NativeControlHost` child window, like macOS. Neither API brings
+its own controls, so `PlayerWindow` draws play/pause, a position slider and the time below the video
+(Avalonia cannot draw over a native child window).
+
+- **Windows:** Media Foundation's MFPlay (`MFPCreateMediaPlayer` with the host's HWND). The interface's
+  method order was checked against Wine's `mfplay.idl`. MFPlay is deprecated but ships with Windows 10 and
+  11. Windows "N" editions without Media Foundation, and any load error, show the reason in the window with
+  "Open in default player".
+- **Linux:** GStreamer's `playbin` with `xvimagesink`, falling back to `ximagesink` where the X server has
+  no XVideo (Xvfb has none). X11 only; a Wayland handle shows a message instead. If GStreamer is not
+  installed at all, the app opens the default player as before. Timelapses are H.264, which needs
+  `gstreamer1.0-libav` (not installed by default on Ubuntu); without it the window says so.
+
+**Checked on GitHub's runners** with a temporary branch (deleted): a 40 s test clip with the time burnt in
+was opened with the Debug-only `--play <file> [--seek <s>]` switch. Windows showed 6.3 s then 10.4 s four
+seconds later, and 35.6 s after a seek to 30 s; Linux (Xvfb) showed 3.5 s, 7.7 s and 36.3 s. With
+`gstreamer1.0-libav` removed, Linux showed the missing-plug-in message. No person has used either player
+yet, and the core tests cannot cover them.

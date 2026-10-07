@@ -203,4 +203,4 @@ Resolve these during milestones 1 to 3, and write the answers back into this doc
 - [x] Repository layout: exactly as planned, with no extra projects or scripts (2026-10-07).
 - [x] Installers: unsigned for now, built by `.github/workflows/release.yml`; signing switches on when certificates are added (2026-10-07).
 - [x] Auto-download: while the app is open, off by default (2026-10-07).
-- [x] Built-in player: OS-native players (2026-10-07). LibVLC has no Apple Silicon build on NuGet (see FINDINGS). macOS uses AVFoundation; Windows and Linux still open the default player until their players are written.
+- [x] Built-in player: OS-native players (2026-10-07). LibVLC has no Apple Silicon build on NuGet (see FINDINGS). macOS uses AVFoundation, Windows Media Foundation (MFPlay), Linux GStreamer (2026-10-07); each falls back to the default player.

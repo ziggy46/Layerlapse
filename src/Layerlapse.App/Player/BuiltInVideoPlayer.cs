@@ -4,8 +4,8 @@ using Layerlapse.Core.Timelapses;
 namespace Layerlapse.App.Player;
 
 /// <summary>
-/// Plays timelapses inside Layerlapse using the operating system's video framework. Implemented for macOS
-/// (AVFoundation). Elsewhere, and if the native view cannot be created, it opens the default player.
+/// Plays timelapses inside Layerlapse using the operating system's video framework: AVFoundation on macOS,
+/// Media Foundation on Windows, GStreamer on Linux. Where none is available it opens the default player.
 /// </summary>
 public sealed class BuiltInVideoPlayer(Func<Window?> owner) : IVideoPlayer
 {
@@ -18,21 +18,40 @@ public sealed class BuiltInVideoPlayer(Func<Window?> owner) : IVideoPlayer
             throw new FileNotFoundException("The video is not on this computer.", localPath);
         }
 
-        if (OperatingSystem.IsMacOS() && MacVideoView.IsSupported)
+        if (CreateWindow(localPath) is not { } window)
         {
-            var window = new PlayerWindow(localPath, new MacVideoView(localPath));
-            if (owner() is { } parent)
-            {
-                window.Show(parent);
-            }
-            else
-            {
-                window.Show();
-            }
-
+            _fallback.Play(localPath);
             return;
         }
 
-        _fallback.Play(localPath);
+        if (owner() is { } parent)
+        {
+            window.Show(parent);
+        }
+        else
+        {
+            window.Show();
+        }
+    }
+
+    /// <summary>A player window for this system, or null when only the default player can play it.</summary>
+    public static PlayerWindow? CreateWindow(string localPath)
+    {
+        if (OperatingSystem.IsMacOS() && MacVideoView.IsSupported)
+        {
+            return new PlayerWindow(localPath, new MacVideoView(localPath));
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            return new PlayerWindow(localPath, new WindowsVideoView(localPath));
+        }
+
+        if (OperatingSystem.IsLinux() && LinuxVideoView.IsSupported)
+        {
+            return new PlayerWindow(localPath, new LinuxVideoView(localPath));
+        }
+
+        return null;
     }
 }
