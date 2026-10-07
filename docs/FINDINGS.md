@@ -502,6 +502,11 @@ on when the certificate secrets listed in the workflow are added.
 - **First CI run (2026-10-07, after publishing to github.com/ziggy46/Layerlapse):** the `CI` workflow built the
   solution and ran the tests on `macos-latest`, `windows-latest` and `ubuntu-latest`, all green (run
   37645369559). This is the first build on Windows and Linux. Printer and credential-store tests skip in CI.
+- **First installer build (release workflow run by hand, run 37646563060):** all four packages built:
+  `osx-arm64` .dmg (50 MB), `osx-x64` .dmg (52 MB), `win-x64` .zip (75 MB, contains `Layerlapse.exe` and the
+  Skia/ANGLE native libraries) and `linux-x64` .tar.gz (45 MB, with `layerlapse.desktop`). The Windows
+  `Layerlapse.dll` contains no `DevEnvFileCredentialStore`. No release was created (only tags do that), and
+  none of the packages has been installed and launched on Windows or Linux.
 - With ad-hoc signing, every new version has a different code signature, so macOS asks for Keychain access
   again after each update. A Developer ID certificate fixes this.
 
