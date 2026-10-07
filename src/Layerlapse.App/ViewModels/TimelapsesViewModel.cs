@@ -16,7 +16,7 @@ public partial class TimelapsesViewModel(
     string printerId,
     TimelapseCache cache,
     IVideoPlayer player,
-    Func<string?, Task<string?>>? pickFolder = null,
+    Func<string, string?, Task<string?>>? pickFolder = null,
     JsonSettingsStore? settings = null,
     Action<string>? revealFolder = null) : ViewModelBase, IAsyncDisposable
 {
@@ -162,7 +162,7 @@ public partial class TimelapsesViewModel(
 
         var saved = settings is null ? new AppSettings() : await settings.LoadAsync();
         var suggested = saved.LastDownloadFolder ?? LastDownloadFolder;
-        var folder = await pickFolder(suggested);
+        var folder = await pickFolder("Choose where to save timelapses", suggested);
         if (folder is null)
         {
             return;
@@ -272,14 +272,9 @@ public partial class TimelapsesViewModel(
         }
     }
 
-    /// <summary>Connected: refresh from the printer.</summary>
+    /// <summary>Connected: refresh from the printer. The session is shared and owned by the caller.</summary>
     public async Task AttachAsync(PrinterSession session)
     {
-        if (_session is not null)
-        {
-            await _session.DisposeAsync();
-        }
-
         _session = session;
         _library = new TimelapseLibrary(session, cache);
         OnPropertyChanged(nameof(IsConnected));
@@ -379,10 +374,7 @@ public partial class TimelapsesViewModel(
         _downloads?.Cancel();
         _lifetime.Cancel();
         _thumbnails?.Cancel();
-        if (_session is not null)
-        {
-            await _session.DisposeAsync();
-        }
+        await Task.CompletedTask;
     }
 
     private bool CanRefresh() => !IsRefreshing;

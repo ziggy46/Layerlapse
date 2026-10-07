@@ -152,7 +152,16 @@ public sealed partial class BambuFtpsClient : IPrinterClient
         _controlSocket?.Dispose();
     }
 
-    private async Task TransferAsync(string command, Stream destination, IProgress<long>? progress, CancellationToken cancellationToken, long restartAt = 0)
+    public async Task<byte[]> ReadRangeAsync(string remotePath, long offset, int length, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(length);
+        var buffer = new MemoryStream(length);
+        await TransferAsync($"RETR {CheckPath(remotePath)}", buffer, null, cancellationToken, restartAt: offset, maxBytes: length);
+        return buffer.ToArray();
+    }
+
+    private async Task TransferAsync(string command, Stream destination, IProgress<long>? progress, CancellationToken cancellationToken, long restartAt = 0, long? maxBytes = null)
     {
         var pasv = (await CommandAsync("PASV", cancellationToken)).Expect(227);
         var port = ParsePasvPort(pasv);
@@ -186,11 +195,20 @@ public sealed partial class BambuFtpsClient : IPrinterClient
 
         var buffer = new byte[81920];
         var total = restartAt;
+        long received = 0;
         var stream = dataTls.Stream;
+        var stoppedEarly = false;
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var read = await Task.Run(() => stream.Read(buffer, 0, buffer.Length), cancellationToken);
+            var want = maxBytes is { } max ? (int)Math.Min(buffer.Length, max - received) : buffer.Length;
+            if (want <= 0)
+            {
+                stoppedEarly = true;
+                break;
+            }
+
+            var read = await Task.Run(() => stream.Read(buffer, 0, want), cancellationToken);
             if (read <= 0)
             {
                 break;
@@ -198,7 +216,22 @@ public sealed partial class BambuFtpsClient : IPrinterClient
 
             await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             total += read;
+            received += read;
             progress?.Report(total);
+        }
+
+        if (stoppedEarly)
+        {
+            // We have the bytes we asked for: drop the data connection. vsftpd then reports the aborted
+            // transfer (426), or 226 if it had already sent everything.
+            dataSocket.Dispose();
+            var reply = await ReadReplyAsync(cancellationToken);
+            if (reply.Code is not (226 or 426 or 451))
+            {
+                throw new FtpReplyException(command.Split(' ')[0], reply);
+            }
+
+            return;
         }
 
         dataTls.Close();

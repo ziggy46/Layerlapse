@@ -101,6 +101,32 @@ public class PrinterTests(ITestOutputHelper output)
     }
 
     [PrinterFact]
+    public async Task Ranged_reads_match_the_whole_file_and_keep_the_connection_usable()
+    {
+        await using var client = CreateClient();
+        await client.ConnectAsync();
+        const string path = "/timelapse/video_2026-09-15_16-12-12.mp4"; // 5,424,735 bytes
+        var whole = Path.Combine(Path.GetTempPath(), $"layerlapse-range-{Guid.NewGuid():N}.mp4");
+        try
+        {
+            await client.DownloadAsync(path, whole);
+            var expected = await File.ReadAllBytesAsync(whole);
+
+            foreach (var (offset, length) in new[] { (0L, 100), (1_000_000L, 65536), (expected.Length - 5000L, 65536), (2_500_000L, 1) })
+            {
+                var range = await client.ReadRangeAsync(path, offset, length);
+                Assert.Equal(expected.AsSpan((int)offset, Math.Min(length, expected.Length - (int)offset)).ToArray(), range);
+            }
+
+            Assert.NotEmpty(await client.ListAsync("/timelapse/")); // the control connection is still fine
+        }
+        finally
+        {
+            File.Delete(whole);
+        }
+    }
+
+    [PrinterFact]
     public async Task Exposes_serial_from_certificate()
     {
         await using var client = CreateClient();

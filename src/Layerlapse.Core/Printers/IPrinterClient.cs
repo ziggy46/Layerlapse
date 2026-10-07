@@ -31,6 +31,12 @@ public interface IPrinterClient : IAsyncDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Reads up to <paramref name="length"/> bytes starting at <paramref name="offset"/> (FTP REST, then the
+    /// transfer is cut short). Returns fewer bytes at the end of the file. Used to read inside archives.
+    /// </summary>
+    Task<byte[]> ReadRangeAsync(string remotePath, long offset, int length, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Continues a download: keeps the first <paramref name="resumeFrom"/> bytes of <paramref name="localPath"/>
     /// and appends the rest (FTP REST). Progress reports the file's total bytes, including the kept part.
     /// </summary>

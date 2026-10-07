@@ -390,9 +390,65 @@ through the real UI against the printer:
   already in the play cache is copied instead of downloaded. The folder is chosen each time with the system
   folder picker, starting at the last folder used (else Downloads), remembered in `settings.json`.
 
+## 2026-10-07: milestone 6 (models)
+
+### What is inside a `.gcode.3mf`? **G-code, previews and slicing details, but no mesh.**
+
+`Under_Desk_Cable_Clip_(cable_management).gcode.3mf` (226,536 bytes), downloaded with curl and listed:
+
+```bash
+unzip -l model.3mf
+#   12432  Metadata/plate_1.png          <- 512x512 preview
+#    4162  Metadata/plate_1_small.png
+#    3810  Metadata/plate_no_light_1.png
+#    2021  Metadata/top_1.png, 1746 Metadata/pick_1.png
+#  757257  Metadata/plate_1.gcode
+#    1671  Metadata/slice_info.config    <- prediction (s), weight (g), filaments, printer_model_id
+#    6964  3D/3dmodel.model              <- metadata and object references, 0 <vertex> elements
+#   60040  Metadata/project_settings.config, plus model_settings, plate_1.json, _rels
+```
+
+- **Preview:** `Metadata/plate_1.png` (512×512). Projects without one fall back to `Metadata/thumbnail.png`
+  or the 3MF `Auxiliaries/.thumbnails` images.
+- **The original mesh is not included**: `3D/3dmodel.model` has no vertices. A printer-side `.gcode.3mf` is
+  the sliced plate. Bambu Studio opens it with its settings and G-code, but the shapes cannot be edited.
+- **`slice_info.config`** gives the slicer's predicted time (here 959 s), filament weight (4.99 g), filament
+  type and colour, and `printer_model_id` (`BL-P001`). The app shows these on each card, marked as estimates.
+
+### Previews without downloading the archives
+
+The 176 models total 530 MB (median 1.4 MB, largest 32.5 MB). Instead of downloading them, the app opens
+each archive through a seekable stream backed by FTP ranged reads (`REST <offset>`, `RETR`, then the
+transfer is cut short once enough bytes arrive) and lets .NET's `ZipArchive` read only the zip directory
+and the preview entry. vsftpd answers the cut-short transfer with `426` and the connection stays usable
+(printer test `Ranged_reads_match_the_whole_file_and_keep_the_connection_usable`).
+
+| | Result (printer test `Lists_models_and_reads_previews`, all 176 models) |
+| --- | --- |
+| Listing with MDTM | 1.7 s |
+| Previews found | 176 of 176, and print time for 176 of 176 |
+| First load of all previews | 43.6 s (about 0.25 s each, filling in as they arrive) |
+| Second time, from the cache | 22 ms |
+
+### Acceptance: previews for most models, and downloads open in Bambu Studio. **Yes (macOS).**
+
+Claude clicked through the dev `.app`: the Models page showed every model with its preview, size,
+print time, weight and filament; searching "cable clip" left the two matching models; downloading saved the
+file (226,536 bytes, same as curl); "Open in Bambu Studio" launched Bambu Studio with the file loaded.
+
+On this Mac the system's default app for `.3mf` is **LycheeSlicer**, not Bambu Studio, so the button
+opens Bambu Studio explicitly (macOS bundle id `com.bambulab.bambu-studio`; on Windows
+`Program Files\Bambu Studio\bambu-studio.exe`, on Linux `bambu-studio` or the Flatpak) and falls back to
+the default app. The Windows and Linux paths are untested.
+
+### Development builds skip the Keychain
+
+At the owner's request (2026-10-07), Debug builds read the access code from the developer's
+`~/.config/layerlapse/env` file (read-only, never written) when it exists, so each rebuild no longer
+triggers a Keychain prompt. Release builds always use the OS secret store.
+
 ## Still open
 
-- What is inside a `.gcode.3mf`: milestone 6.
 - Whether listing or downloading during an active print causes slowdown or disconnects: not tested. The
   printer appeared idle during these runs (its last camera recording was from 2026-10-04).
 - Whether FluentFTP works on Windows: SChannel may resume TLS sessions there. Not tested, and moot

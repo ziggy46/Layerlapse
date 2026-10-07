@@ -139,6 +139,9 @@ public sealed class TimelapseDownloaderPrinterTests(ITestOutputHelper output) : 
             return inner.DownloadAsync(remotePath, localPath, resumeFrom, new Relay(b => { onProgress(b); progress?.Report(b); }), cancellationToken);
         }
 
+        public Task<byte[]> ReadRangeAsync(string remotePath, long offset, int length, CancellationToken cancellationToken = default) =>
+            inner.ReadRangeAsync(remotePath, offset, length, cancellationToken);
+
         public ValueTask DisposeAsync() => inner.DisposeAsync();
 
         private sealed class Relay(Action<long> report) : IProgress<long>

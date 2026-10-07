@@ -31,7 +31,7 @@
           </Button>
           <ListBox SelectedIndex="{Binding NavIndex}" Background="Transparent">
             <ListBoxItem Content="Timelapses" IsEnabled="{Binding HasTimelapses}" />
-            <ListBoxItem Content="Models (coming later)" IsEnabled="False" />
+            <ListBoxItem Content="Models" IsEnabled="{Binding HasTimelapses}" />
           </ListBox>
         </StackPanel>
         <ToggleSwitch DockPanel.Dock="Bottom" VerticalAlignment="Bottom"

@@ -37,6 +37,8 @@ internal sealed class FakePrinter
     /// <summary>Restart offsets requested, in order (0 for a fresh download).</summary>
     public List<long> RestartOffsets { get; } = [];
 
+    public int RangeReads { get; private set; }
+
     /// <summary>Bytes actually sent over all transfers.</summary>
     public long BytesSent { get; private set; }
 
@@ -85,16 +87,16 @@ internal sealed class FakePrinter
         public Task<IReadOnlyList<RemoteEntry>> ListAsync(string remoteFolder, CancellationToken cancellationToken = default)
         {
             var prefix = remoteFolder.EndsWith('/') ? remoteFolder : remoteFolder + "/";
-            if (prefix == "/")
-            {
-                return Task.FromResult<IReadOnlyList<RemoteEntry>>([new RemoteEntry("timelapse", "/timelapse", 0, DateTime.UtcNow, true)]);
-            }
-
             // Like vsftpd: minute precision in listings.
             var entries = printer.Files
                 .Where(f => f.Key.StartsWith(prefix, StringComparison.Ordinal) && !f.Key[prefix.Length..].Contains('/'))
                 .Select(f => new RemoteEntry(f.Key[prefix.Length..], f.Key, f.Value.Data.Length, TruncateToMinute(f.Value.ModifiedUtc), false))
                 .ToList();
+            if (prefix == "/")
+            {
+                entries.Insert(0, new RemoteEntry("timelapse", "/timelapse", 0, DateTime.UtcNow, true));
+            }
+
             return Task.FromResult<IReadOnlyList<RemoteEntry>>(entries);
         }
 
@@ -106,6 +108,20 @@ internal sealed class FakePrinter
 
         public Task DownloadAsync(string remotePath, string localPath, IProgress<long>? progress = null, CancellationToken cancellationToken = default) =>
             DownloadAsync(remotePath, localPath, 0, progress, cancellationToken);
+
+        public Task<byte[]> ReadRangeAsync(string remotePath, long offset, int length, CancellationToken cancellationToken = default)
+        {
+            if (!printer.Files.TryGetValue(remotePath, out var file))
+            {
+                throw new FtpReplyException("RETR", 550, "550 Failed to open file.");
+            }
+
+            printer.RangeReads++;
+            var start = (int)Math.Min(offset, file.Data.Length);
+            var count = Math.Min(length, file.Data.Length - start);
+            printer.BytesSent += count;
+            return Task.FromResult(file.Data.AsSpan(start, count).ToArray());
+        }
 
         public async Task DownloadAsync(string remotePath, string localPath, long resumeFrom, IProgress<long>? progress = null, CancellationToken cancellationToken = default)
         {

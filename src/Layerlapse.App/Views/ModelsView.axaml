@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Layerlapse.App.ViewModels"
+             x:Class="Layerlapse.App.Views.ModelsView"
+             x:DataType="vm:ModelsViewModel">
+
+  <DockPanel>
+    <!-- Toolbar: title, status, search, refresh -->
+    <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="20,14">
+      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+        <StackPanel Spacing="2">
+          <TextBlock Text="Models" FontSize="16" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Status}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <TextBox Text="{Binding Search}" PlaceholderText="Search by name" Width="240" />
+          <Button Content="Refresh" Command="{Binding RefreshCommand}" IsEnabled="{Binding IsConnected}" />
+        </StackPanel>
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Error}" Margin="0,8,0,0" TextWrapping="Wrap"
+                   Foreground="{DynamicResource DangerBrush}"
+                   IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      </Grid>
+    </Border>
+
+    <!-- Selection and downloads -->
+    <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="20,8"
+            Background="{DynamicResource PanelBrush}">
+      <StackPanel Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Select all" Command="{Binding SelectAllCommand}" />
+          <Button Content="Clear selection" Command="{Binding ClearSelectionCommand}" IsVisible="{Binding HasSelection}" />
+          <Button Classes="accent" Content="{Binding DownloadSelectedLabel}" Command="{Binding DownloadSelectedCommand}"
+                  IsVisible="{Binding HasSelection}" FontWeight="Bold" FontSize="14" />
+        </StackPanel>
+        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowDownloadBar}">
+          <StackPanel Spacing="4" VerticalAlignment="Center">
+            <TextBlock Text="{Binding DownloadText}" FontSize="12" TextWrapping="Wrap" />
+            <ProgressBar Value="{Binding DownloadPercent}" Maximum="100" IsVisible="{Binding IsDownloading}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
+            <Button Content="Cancel" Command="{Binding CancelDownloadsCommand}" IsVisible="{Binding IsDownloading}" />
+            <Button Content="Show folder" Command="{Binding RevealFolderCommand}" IsVisible="{Binding CanRevealFolder}" />
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <Panel>
+      <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420" Spacing="6">
+        <TextBlock Text="No models on this printer" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center" />
+        <TextBlock TextWrapping="Wrap" TextAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"
+                   Text="Projects sent from Bambu Studio are stored on the printer's storage as .3mf files." />
+      </StackPanel>
+
+      <TextBlock IsVisible="{Binding NoMatches}" Text="No models match your search."
+                 HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+
+      <ProgressBar IsIndeterminate="True" Width="160" VerticalAlignment="Center" IsVisible="{Binding !HasLoaded}" />
+
+      <ScrollViewer>
+        <ItemsControl ItemsSource="{Binding Items}" Margin="16">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ModelItemViewModel">
+              <Border Width="200" Margin="4" Background="{DynamicResource CardBrush}"
+                      BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+                <StackPanel>
+                  <Panel Height="160" Background="{DynamicResource PanelBrush}">
+                    <Image Source="{Binding Preview}" Stretch="Uniform" />
+                    <Border Background="{DynamicResource CardBrush}" CornerRadius="4" Margin="6" Padding="2"
+                            HorizontalAlignment="Left" VerticalAlignment="Top">
+                      <CheckBox IsChecked="{Binding IsSelected}" MinWidth="0" Padding="0" ToolTip.Tip="Select for download" />
+                    </Border>
+                    <Border Background="{DynamicResource CardBrush}" CornerRadius="4" Margin="6" Padding="4,1"
+                            HorizontalAlignment="Right" VerticalAlignment="Top">
+                      <TextBlock Text="{Binding Kind}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </Border>
+                  </Panel>
+                  <StackPanel Margin="10,8,10,10" Spacing="2">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2"
+                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Model.Name}" />
+                    <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0">
+                      <Button Content="Download"
+                              Command="{Binding $parent[ItemsControl].((vm:ModelsViewModel)DataContext).DownloadOneCommand}"
+                              CommandParameter="{Binding}" />
+                      <Button Content="Open in Bambu Studio" IsVisible="{Binding CanOpen}" ToolTip.Tip="Opens the downloaded file in Bambu Studio, or its default app if Bambu Studio is not installed"
+                              Command="{Binding $parent[ItemsControl].((vm:ModelsViewModel)DataContext).OpenCommand}"
+                              CommandParameter="{Binding}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding DownloadStatus}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
+                               IsVisible="{Binding DownloadStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Panel>
+  </DockPanel>
+</UserControl>

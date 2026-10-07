@@ -27,7 +27,7 @@ public partial class App : Application
         {
             var discovery = new PrinterDiscovery();
             var setup = new PrinterSetupService(
-                CredentialStores.CreateDefault(),
+                CreateCredentialStore(),
                 JsonPrinterProfileStore.CreateDefault(),
                 connection => new BambuFtpsClient(connection),
                 discovery);
@@ -35,9 +35,10 @@ public partial class App : Application
             var main = new MainViewModel(
                 new ConnectionViewModel(setup, discovery), setup,
                 player: player,
-                pickFolder: start => PickFolderAsync(desktop.MainWindow, start),
+                pickFolder: (title, start) => PickFolderAsync(desktop.MainWindow, title, start),
                 settings: JsonSettingsStore.CreateDefault(),
-                revealFolder: RevealFolder);
+                revealFolder: OpenWithDefaultApp,
+                openInSlicer: path => BambuStudioLauncher.Open(path, OpenWithDefaultApp));
             desktop.MainWindow = new MainWindow { DataContext = main };
 
             // Reconnect to the last printer with no typing; the view shows progress and any error.
@@ -47,8 +48,20 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
+    private static ICredentialStore CreateCredentialStore()
+    {
+#if DEBUG
+        // Development builds: avoid a Keychain prompt after every rebuild (see DevEnvFileCredentialStore).
+        if (File.Exists(DevEnvFileCredentialStore.DefaultPath))
+        {
+            return new DevEnvFileCredentialStore(DevEnvFileCredentialStore.DefaultPath);
+        }
+#endif
+        return CredentialStores.CreateDefault();
+    }
+
     /// <summary>Asks where to save downloads, starting at the last used folder or Downloads.</summary>
-    private static async Task<string?> PickFolderAsync(TopLevel? window, string? start)
+    private static async Task<string?> PickFolderAsync(TopLevel? window, string title, string? start)
     {
         if (window is null)
         {
@@ -61,19 +74,22 @@ public partial class App : Application
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
         var folders = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Choose where to save timelapses",
+            Title = title,
             AllowMultiple = false,
             SuggestedStartLocation = Directory.Exists(startPath) ? await storage.TryGetFolderFromPathAsync(startPath) : null,
         });
         return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
     }
 
-    /// <summary>Opens the folder in Finder, Explorer or the Linux file manager.</summary>
-    private static void RevealFolder(string folder)
+    /// <summary>
+    /// Opens a folder in Finder, Explorer or the Linux file manager, or a file in its default app
+    /// (a .3mf in Bambu Studio when it is installed).
+    /// </summary>
+    private static void OpenWithDefaultApp(string path)
     {
-        var start = OperatingSystem.IsMacOS() ? new ProcessStartInfo("open") { ArgumentList = { folder } }
-            : OperatingSystem.IsLinux() ? new ProcessStartInfo("xdg-open") { ArgumentList = { folder } }
-            : new ProcessStartInfo("explorer.exe") { ArgumentList = { folder } };
+        var start = OperatingSystem.IsMacOS() ? new ProcessStartInfo("open") { ArgumentList = { path } }
+            : OperatingSystem.IsLinux() ? new ProcessStartInfo("xdg-open") { ArgumentList = { path } }
+            : new ProcessStartInfo(path) { UseShellExecute = true };
         try
         {
             using var _ = Process.Start(start);
