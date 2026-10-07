@@ -285,6 +285,16 @@ public sealed class PrinterSessionTests
     }
 
     [Fact]
+    public async Task Does_not_retry_an_unreachable_printer()
+    {
+        var printer = new FakePrinter { Reachable = false };
+        await using var session = new PrinterSession(new PrinterConnection("192.168.1.50", printer.AccessCode), printer.Create);
+
+        await Assert.ThrowsAsync<PrinterUnreachableException>(() => session.RunAsync(c => c.ListAsync("/")));
+        Assert.Single(printer.Connections);
+    }
+
+    [Fact]
     public async Task Does_not_retry_a_wrong_code()
     {
         var printer = new FakePrinter();

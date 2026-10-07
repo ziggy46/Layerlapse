@@ -32,6 +32,9 @@
                    Text="The printer saves a timelapse only when timelapse recording is switched on for a print and storage is inserted." />
       </StackPanel>
 
+      <TextBlock IsVisible="{Binding IsFilteredEmpty}" Text="No timelapses between these dates."
+                 HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+
       <!-- First load -->
       <ProgressBar IsIndeterminate="True" Width="160" VerticalAlignment="Center"
                    IsVisible="{Binding !HasLoaded}" />

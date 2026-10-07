@@ -101,12 +101,10 @@ public partial class MainViewModel : ViewModelBase
         {
             await SyncWithConnectionAsync();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or AccessCodeMissingException)
+        catch (Exception)
         {
-            if (Timelapses is not null)
-            {
-                CurrentPage = AppPage.Printer;
-            }
+            // async void handler: never let an exception reach the UI thread. The printer page shows the state.
+            CurrentPage = AppPage.Printer;
         }
     }
 
@@ -140,6 +138,7 @@ public partial class MainViewModel : ViewModelBase
 
             case ConnectionState.Failed or ConnectionState.CertificateChanged or ConnectionState.Setup:
                 _attachedHost = null;
+                Timelapses?.MarkOffline();
                 CurrentPage = AppPage.Printer;
                 break;
         }

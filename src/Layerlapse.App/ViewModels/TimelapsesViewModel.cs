@@ -53,6 +53,18 @@ public partial class TimelapsesViewModel(string printerId, TimelapseCache cache,
     /// <summary>The printer has no timelapses at all (not just none in the date range).</summary>
     public bool IsEmpty => HasLoaded && TotalCount == 0;
 
+    /// <summary>There are timelapses, but none in the chosen dates.</summary>
+    public bool IsFilteredEmpty => HasLoaded && TotalCount > 0 && Items.Count == 0;
+
+    /// <summary>The connection failed: the cached list stays, labelled as such.</summary>
+    public void MarkOffline()
+    {
+        if (HasLoaded && !IsRefreshing)
+        {
+            Status = CountText(_all.Count) + " · from the last visit";
+        }
+    }
+
     public bool IsFiltered => From is not null || To is not null;
 
     partial void OnFromChanged(DateTime? value) => ApplyFilter();
@@ -206,6 +218,8 @@ public partial class TimelapsesViewModel(string printerId, TimelapseCache cache,
         {
             Items.Add(item);
         }
+
+        OnPropertyChanged(nameof(IsFilteredEmpty));
     }
 
     /// <summary>Cached thumbnails first (instant), then downloads for the rest, newest first.</summary>

@@ -34,11 +34,12 @@ public sealed class PrinterSession : IAsyncDisposable
             {
                 return await operation(await ClientAsync(cancellationToken));
             }
-            catch (IOException e) when (e is not (PrinterAuthenticationException or PrinterCertificateMismatchException or FtpReplyException)
+            catch (IOException e) when (e is not (PrinterConnectionException or FtpReplyException)
                                         && !cancellationToken.IsCancellationRequested)
             {
                 // The connection may have been dropped (idle timeout, Wi-Fi blip): reconnect once and retry.
-                // An FTP reply such as "550 not found" means the connection is fine, so that is not retried.
+                // An FTP reply such as "550 not found" means the connection is fine, and a failure to connect at all
+                // (unreachable, wrong code, certificate) already has its own message, so neither is retried.
                 await CloseClientAsync();
                 return await operation(await ClientAsync(cancellationToken));
             }

@@ -84,6 +84,11 @@ public sealed class TimelapsesViewModelTests : IDisposable
         grid.To = new DateTime(2026, 10, 3);
         Assert.Equal("video_2026-10-03_17-47-45.mp4", Assert.Single(grid.Items).Timelapse.Name);
 
+        grid.From = new DateTime(2020, 1, 1);
+        grid.To = new DateTime(2020, 1, 2);
+        Assert.True(grid.IsFilteredEmpty);
+        Assert.False(grid.IsEmpty);
+
         grid.ClearFilterCommand.Execute(null);
         Assert.Equal(3, grid.Items.Count);
     }
