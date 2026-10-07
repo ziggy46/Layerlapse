@@ -199,6 +199,16 @@ and the headless render test shows the message in the real UI.
 | Linux | Secret Service via libsecret, schema `app.layerlapse.PrinterAccessCode` | Round trip passed in `mcr.microsoft.com/dotnet/sdk:10.0` with `gnome-keyring-daemon` under `dbus-run-session`. With no daemon, libsecret reports "Cannot autolaunch D-Bus without X11 $DISPLAY"; the app then connects and warns that the code will not be remembered |
 | Windows | Credential Manager, generic credential `Layerlapse:printer:<serial>` | Compiles only; not run |
 
+### Milestone 2 acceptance: restart connects with no typing. **Yes (macOS).**
+
+The owner entered the IP and code once in `artifacts/macos/Layerlapse.app` (built by
+`scripts/make-macos-bundle.sh`) and quit. Afterwards `printers.json` held host, serial, pin and
+time only (the code appears 0 times), and `security find-generic-password -s Layerlapse` showed one item
+whose account is the serial. Relaunching the same build showed "Connected" with the serial, with no input
+and no Keychain prompt; `lastConnected` was updated by the new login. The pinned fingerprint matches the
+certificate from milestone 1 (`145C6BBE…`). A wrong code shows "The printer rejected the access code…"
+(see above).
+
 macOS caveat: keychain items created by an ad-hoc signed development build trust that exact binary.
 After a rebuild, macOS may ask "Layerlapse wants to use your confidential information" once; choose
 Always Allow. Signed release builds (milestone 7) will not have this.
