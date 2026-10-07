@@ -49,6 +49,7 @@ public partial class TimelapseItemViewModel(Timelapse timelapse) : ViewModelBase
 
     public static string FormatSize(long bytes) => bytes switch
     {
+        >= 1024L * 1024 * 1024 => (bytes / 1024d / 1024d / 1024d).ToString("0.0", CultureInfo.CurrentCulture) + " GB",
         >= 1024 * 1024 => (bytes / 1024d / 1024d).ToString("0.0", CultureInfo.CurrentCulture) + " MB",
         >= 1024 => (bytes / 1024d).ToString("0", CultureInfo.CurrentCulture) + " KB",
         _ => bytes + " bytes",

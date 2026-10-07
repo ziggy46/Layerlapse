@@ -86,7 +86,7 @@
                     <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                ToolTip.Tip="Duration is approximate: the file's last change minus the start time in its name." />
                     <ProgressBar Value="{Binding Progress}" Maximum="100" Margin="0,6,0,0" IsVisible="{Binding IsDownloading}" />
-                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0">
+                    <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" Margin="0,6,0,0">
                       <Button Content="Play"
                               Command="{Binding $parent[ItemsControl].((vm:TimelapsesViewModel)DataContext).PlayCommand}"
                               CommandParameter="{Binding}" IsEnabled="{Binding IsIdle}" />
@@ -97,7 +97,7 @@
                               IsVisible="{Binding $parent[ItemsControl].((vm:TimelapsesViewModel)DataContext).AllowDelete}"
                               Command="{Binding $parent[ItemsControl].((vm:TimelapsesViewModel)DataContext).DeleteCommand}"
                               CommandParameter="{Binding}" ToolTip.Tip="Delete this timelapse from the printer (asks first)" />
-                    </StackPanel>
+                    </WrapPanel>
                     <TextBlock Text="{Binding DownloadStatus}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
                                IsVisible="{Binding DownloadStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
                     <TextBlock Text="{Binding Error}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource DangerBrush}"

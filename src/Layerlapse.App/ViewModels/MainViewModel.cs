@@ -222,9 +222,12 @@ public partial class MainViewModel : ViewModelBase
             var usage = await Layerlapse.Core.Printers.StorageUsage.MeasureAsync(session);
             if (ReferenceEquals(session, _session))
             {
+                static string Size(long bytes) => TimelapseItemViewModel.FormatSize(bytes);
                 Connection.StorageText =
-                    $"Storage used: {TimelapseItemViewModel.FormatSize(usage.TotalBytes)} · timelapses {TimelapseItemViewModel.FormatSize(usage.Timelapses.Bytes)} ({usage.Timelapses.Files}) · " +
-                    $"models {TimelapseItemViewModel.FormatSize(usage.Models.Bytes)} ({usage.Models.Files}) · camera recordings {TimelapseItemViewModel.FormatSize(usage.CameraRecordings.Bytes)} ({usage.CameraRecordings.Files}). " +
+                    $"Storage used: {Size(usage.TotalBytes)}\n" +
+                    $"Camera recordings {Size(usage.CameraRecordings.Bytes)} ({usage.CameraRecordings.Files} files)\n" +
+                    $"Timelapses {Size(usage.Timelapses.Bytes + usage.Thumbnails.Bytes)} ({usage.Timelapses.Files})\n" +
+                    $"Models {Size(usage.Models.Bytes)} ({usage.Models.Files})\n" +
                     "The printer does not report free space.";
             }
         }

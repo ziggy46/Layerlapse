@@ -1,0 +1,160 @@
+name: Release
+
+# Builds installers for macOS, Windows and Linux. Runs for version tags (v1.2.3) and by hand.
+# Unsigned for now: macOS builds are ad-hoc signed, so Gatekeeper warns on first open and the Keychain asks
+# again after each update. Adding the secrets below turns on Developer ID signing and notarization.
+#   MACOS_CERTIFICATE_P12 (base64), MACOS_CERTIFICATE_PASSWORD, MACOS_SIGNING_IDENTITY,
+#   APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD
+# Release builds never contain the development credential store (it is compiled only in Debug).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            rid: osx-arm64
+          - os: macos-latest
+            rid: osx-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: dotnet test Layerlapse.sln --configuration Release
+
+      - name: Version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF#refs/tags/v}"; else v="$(grep -oE '<Version>[^<]+' Directory.Build.props | cut -d'>' -f2)"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Publish
+        shell: bash
+        run: >
+          dotnet publish src/Layerlapse.App -c Release -r ${{ matrix.rid }} --self-contained true
+          -p:Version=${{ steps.version.outputs.version }} -o publish
+
+      - name: macOS app and disk image
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          app="dist/Layerlapse.app"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp -R publish/. "$app/Contents/MacOS/"
+          cat > "$app/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>Layerlapse</string>
+            <key>CFBundleDisplayName</key><string>Layerlapse</string>
+            <key>CFBundleIdentifier</key><string>app.layerlapse.Layerlapse</string>
+            <key>CFBundleExecutable</key><string>Layerlapse</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>${VERSION}</string>
+            <key>CFBundleVersion</key><string>${VERSION}</string>
+            <key>LSMinimumSystemVersion</key><string>12.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+            <key>NSLocalNetworkUsageDescription</key><string>Layerlapse looks for your 3D printer on the local network and downloads its timelapses and models.</string>
+          </dict>
+          </plist>
+          PLIST
+          sed -i '' 's/^          //' "$app/Contents/Info.plist"
+          plutil -lint "$app/Contents/Info.plist"
+
+          if [[ -n "${MACOS_CERTIFICATE_P12:-}" ]]; then
+            keychain="$RUNNER_TEMP/signing.keychain-db"
+            security create-keychain -p "" "$keychain"
+            security set-keychain-settings "$keychain"
+            security unlock-keychain -p "" "$keychain"
+            echo "$MACOS_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k "" "$keychain"
+            security list-keychains -d user -s "$keychain"
+            codesign --force --deep --options runtime --timestamp --sign "$MACOS_SIGNING_IDENTITY" "$app"
+          else
+            codesign --force --deep --sign - "$app"
+          fi
+          codesign --verify --deep --strict "$app"
+
+          dmg="Layerlapse-${VERSION}-${{ matrix.rid }}.dmg"
+          hdiutil create -volname Layerlapse -srcfolder dist -ov -format UDZO "$dmg"
+          if [[ -n "${MACOS_CERTIFICATE_P12:-}" && -n "${APPLE_ID:-}" ]]; then
+            xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+            xcrun stapler staple "$dmg"
+          fi
+          echo "ARTIFACT=$dmg" >> "$GITHUB_ENV"
+
+      - name: Windows zip
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = "Layerlapse-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip"
+          Compress-Archive -Path publish/* -DestinationPath $zip
+          "ARTIFACT=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Linux tarball
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="Layerlapse-${{ steps.version.outputs.version }}-${{ matrix.rid }}"
+          mkdir -p "$name"
+          cp -R publish/. "$name/"
+          cat > "$name/layerlapse.desktop" <<'DESKTOP'
+          [Desktop Entry]
+          Type=Application
+          Name=Layerlapse
+          Comment=Browse and download timelapses and models from your 3D printer (unofficial)
+          Exec=Layerlapse
+          Categories=Graphics;Utility;
+          Terminal=false
+          DESKTOP
+          sed -i 's/^          //' "$name/layerlapse.desktop"
+          tar -czf "$name.tar.gz" "$name"
+          echo "ARTIFACT=$name.tar.gz" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.rid }}
+          path: ${{ env.ARTIFACT }}
+
+  release:
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true

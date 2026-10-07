@@ -447,6 +447,61 @@ At the owner's request (2026-10-07), Debug builds read the access code from the 
 `~/.config/layerlapse/env` file (read-only, never written) when it exists, so each rebuild no longer
 triggers a Keychain prompt. Release builds always use the OS secret store.
 
+## 2026-10-07: milestone 7 (extras)
+
+### Delete
+
+- Allowed only for `/timelapse/video_YYYY-MM-DD_HH-MM-SS.mp4` and its thumbnail (`DeletePolicy`), checked in
+  `BambuFtpsClient.DeleteAsync` and again in `TimelapseLibrary.DeleteAsync`, which also refuses when the
+  setting is off. Root folder (models), `certificate/`, `verify_job` and `/ipcam/` can never be deleted.
+- Off by default. Turning it on in Settings shows a warning; each delete shows a confirmation with the date,
+  size and file name, with Cancel as the default and Delete in red.
+- **Not tested against real files.** Claude does not delete the owner's data. The real printer only received
+  `DELE /timelapse/video_1999-01-01_00-00-00.mp4` (a well-formed name that does not exist): it answered
+  `550` and the connection kept working, and all 74 timelapses were still there
+  (`Deleting_a_timelapse_that_does_not_exist_is_a_550`). In the app, Claude opened the confirmation and
+  clicked Cancel. Deleting a real timelapse is for the owner to try.
+
+### Storage
+
+vsftpd on the printer has no command for free space or capacity, so the printer page shows space used per
+kind of file. On 2026-10-07: 11.0 GB in total, of which camera recordings 9.4 GB (42 files), timelapses
+1.1 GB (74), models 505.8 MB (176).
+
+### Auto-download
+
+Off by default. Turning it on records the current time; only timelapses modified after that are saved, so
+the history is never fetched. It runs after every refresh while the app is open and uses the same resuming
+downloader. Live check: with the start time set to 2026-10-04 00:00 UTC, a refresh saved exactly the
+newest timelapse ("Auto-download: 1 saved", copied from the play cache), and the next launch reported
+"1 already in the folder".
+
+### Several printers
+
+The printer page lists saved printers with Connect, "Add another printer" opens setup, and Forget switches
+to the next saved printer. Only tested with fake printers (one real printer). Debug builds read a single
+access code from the development env file for every printer, so several printers work properly only in
+Release builds.
+
+### Updates
+
+The Settings page shows the version (0.7.0, from `Directory.Build.props`), the unofficial statement and
+"Check for updates". The checker reads a GitHub "latest release" feed, never downloads anything and fails
+silently. It stays off until `UpdateChecker.DefaultFeed` is set, because the repository has no release page
+yet.
+
+### Installers
+
+`.github/workflows/release.yml` builds for version tags or by hand: macOS `.dmg` for Apple Silicon and Intel,
+Windows `.zip`, Linux `.tar.gz` with a `.desktop` file. All are Release builds; signing and notarization turn
+on when the certificate secrets listed in the workflow are added.
+- The macOS steps were run locally as extracted from the workflow: `Layerlapse-0.7.0-osx-arm64.dmg` (52 MB),
+  `hdiutil verify` VALID, bundle id `app.layerlapse.Layerlapse`, version 0.7.0, the Local Network
+  description, ad-hoc signed, and no `DevEnvFileCredentialStore` in the Release DLL.
+- Windows and Linux packaging and the GitHub release job have not run: the repository has no remote.
+- With ad-hoc signing, every new version has a different code signature, so macOS asks for Keychain access
+  again after each update. A Developer ID certificate fixes this.
+
 ## Still open
 
 - Whether listing or downloading during an active print causes slowdown or disconnects: not tested. The

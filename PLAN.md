@@ -194,10 +194,12 @@ Resolve these during milestones 1 to 3, and write the answers back into this doc
 - [x] Theme: dark by default, with a manual toggle.
 - [ ] Provide a Bambu Studio screenshot in dark and light so exact colours can be sampled.
 - [ ] Where should downloads go by default?
-- [ ] In-app updates, or manual download of each new version?
+- [x] In-app updates, or manual download of each new version? *An update check that links to the release page; it never installs anything. Off until a release feed exists (2026-10-07).*
 - [ ] Repository public or private, and which licence?
-- [ ] Should the app ever be able to delete files from the printer?
+- [x] Should the app ever be able to delete files from the printer? *Timelapses only, off by default, one at a time with confirmation (2026-10-07).*
 - [x] Printer time zone setting: not now; the offset is measured from camera recordings (2026-10-07).
 - [x] Video cache cap: 2 GB, least recently used removed first (2026-10-07).
 - [x] Repository layout: exactly as planned, with no extra projects or scripts (2026-10-07).
+- [x] Installers: unsigned for now, built by `.github/workflows/release.yml`; signing switches on when certificates are added (2026-10-07).
+- [x] Auto-download: while the app is open, off by default (2026-10-07).
 - [x] Built-in player: OS-native players (2026-10-07). LibVLC has no Apple Silicon build on NuGet (see FINDINGS). macOS uses AVFoundation; Windows and Linux still open the default player until their players are written.
