@@ -318,6 +318,25 @@ invalidates a session when a resumption attempt is abandoned. vsftpd answers `15
 data connection, so the client now reads the reply first. Printer test
 `Missing_file_is_an_ftp_reply_and_the_connection_survives` covers it.
 
+## 2026-10-07: built-in player spike (LibVLCSharp)
+
+The owner asked to try the built-in player before milestone 5. A throwaway Avalonia 12 app (outside the
+repository) used `LibVLCSharp` 3.10.1, `LibVLCSharp.Avalonia` 3.10.1 and `VideoLAN.LibVLC.Mac` 3.1.3.1.
+
+- **Builds against Avalonia 12:** yes, even though `LibVLCSharp.Avalonia` declares Avalonia ≥ 11.3.13.
+- **Native Apple Silicon:** fails at start-up with `VLCException: Failed to load required native libraries`.
+  The macOS package holds a single file, `build/osx-x64/libvlc.dylib` (42 MB, dated 2018, `lipo`: x86_64 only).
+- **Intel build under Rosetta** (`dotnet publish -r osx-x64`, 148 MB): no window appeared and nothing was
+  logged. `otool -L` shows the dylib links `@loader_path/../Frameworks/VLCKit.framework`, which the package
+  does not include.
+- Timelapses are video only (`ffprobe` shows one H.264 stream and no audio), so any player only needs to show
+  video.
+
+**Conclusion:** there is no usable LibVLC build for Apple Silicon Macs on NuGet. A built-in player would need
+one of: libvlc and its plugins taken from VLC's own universal macOS app and packaged by us; an FFmpeg-based
+decoder drawing frames into the window; or each OS's own video API (AVFoundation, Windows Media, GStreamer).
+Each adds native code or packaging work per platform.
+
 ## Still open
 
 - What is inside a `.gcode.3mf`: milestone 6.

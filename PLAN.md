@@ -197,3 +197,7 @@ Resolve these during milestones 1 to 3, and write the answers back into this doc
 - [ ] In-app updates, or manual download of each new version?
 - [ ] Repository public or private, and which licence?
 - [ ] Should the app ever be able to delete files from the printer?
+- [x] Printer time zone setting: not now; the offset is measured from camera recordings (2026-10-07).
+- [x] Video cache cap: 2 GB, least recently used removed first (2026-10-07).
+- [x] Repository layout: exactly as planned, with no extra projects or scripts (2026-10-07).
+- [ ] Built-in player: the owner asked to try one. LibVLC has no Apple Silicon build on NuGet (see FINDINGS); choose how to proceed.
