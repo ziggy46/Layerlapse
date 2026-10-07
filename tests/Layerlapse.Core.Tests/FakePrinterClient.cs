@@ -21,6 +21,19 @@ internal sealed class FakePrinter
 
     public List<PrinterConnection> Connections { get; } = [];
 
+    /// <summary>Remote files by full path ("/timelapse/video_….mp4").</summary>
+    public Dictionary<string, FakeFile> Files { get; } = new(StringComparer.Ordinal);
+
+    public int Downloads { get; private set; }
+
+    public int ModifiedTimeRequests { get; private set; }
+
+    /// <summary>Thrown by the next download, then cleared.</summary>
+    public Exception? NextDownloadFailure { get; set; }
+
+    public void AddFile(string path, int size, DateTime modifiedUtc) =>
+        Files[path] = new FakeFile(Enumerable.Range(0, size).Select(i => (byte)(i * 7)).ToArray(), modifiedUtc);
+
     public IPrinterClient Create(PrinterConnection connection)
     {
         Connections.Add(connection);
@@ -60,12 +73,50 @@ internal sealed class FakePrinter
             return Task.CompletedTask;
         }
 
-        public Task<IReadOnlyList<RemoteEntry>> ListAsync(string remoteFolder, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RemoteEntry>>([new RemoteEntry("timelapse", "/timelapse", 0, DateTime.Now, true)]);
+        public Task<IReadOnlyList<RemoteEntry>> ListAsync(string remoteFolder, CancellationToken cancellationToken = default)
+        {
+            var prefix = remoteFolder.EndsWith('/') ? remoteFolder : remoteFolder + "/";
+            if (prefix == "/")
+            {
+                return Task.FromResult<IReadOnlyList<RemoteEntry>>([new RemoteEntry("timelapse", "/timelapse", 0, DateTime.UtcNow, true)]);
+            }
 
-        public Task DownloadAsync(string remotePath, string localPath, IProgress<long>? progress = null, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
+            // Like vsftpd: minute precision in listings.
+            var entries = printer.Files
+                .Where(f => f.Key.StartsWith(prefix, StringComparison.Ordinal) && !f.Key[prefix.Length..].Contains('/'))
+                .Select(f => new RemoteEntry(f.Key[prefix.Length..], f.Key, f.Value.Data.Length, TruncateToMinute(f.Value.ModifiedUtc), false))
+                .ToList();
+            return Task.FromResult<IReadOnlyList<RemoteEntry>>(entries);
+        }
+
+        public Task<DateTime?> GetModifiedTimeAsync(string remotePath, CancellationToken cancellationToken = default)
+        {
+            printer.ModifiedTimeRequests++;
+            return Task.FromResult(printer.Files.TryGetValue(remotePath, out var file) ? file.ModifiedUtc : (DateTime?)null);
+        }
+
+        public async Task DownloadAsync(string remotePath, string localPath, IProgress<long>? progress = null, CancellationToken cancellationToken = default)
+        {
+            if (printer.NextDownloadFailure is { } failure)
+            {
+                printer.NextDownloadFailure = null;
+                throw failure;
+            }
+
+            if (!printer.Files.TryGetValue(remotePath, out var file))
+            {
+                throw new FtpReplyException("RETR", 550, "550 Failed to open file.");
+            }
+
+            printer.Downloads++;
+            await File.WriteAllBytesAsync(localPath, file.Data, cancellationToken);
+            progress?.Report(file.Data.Length);
+        }
+
+        private static DateTime TruncateToMinute(DateTime t) => new(t.Ticks - (t.Ticks % TimeSpan.TicksPerMinute), DateTimeKind.Utc);
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }
+
+internal sealed record FakeFile(byte[] Data, DateTime ModifiedUtc);

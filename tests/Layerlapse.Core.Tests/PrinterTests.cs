@@ -75,6 +75,32 @@ public class PrinterTests(ITestOutputHelper output)
     }
 
     [PrinterFact]
+    public async Task Exact_modification_time_matches_curl()
+    {
+        await using var client = CreateClient();
+        await client.ConnectAsync();
+
+        // curl -I ftps://<printer-ip>:990/timelapse/video_2025-07-07_07-17-11.mp4 -> Last-Modified: Mon, 07 Jul 2025 06:57:46 GMT
+        var time = await client.GetModifiedTimeAsync("/timelapse/video_2025-07-07_07-17-11.mp4");
+
+        Assert.Equal(new DateTime(2025, 7, 7, 6, 57, 46, DateTimeKind.Utc), time);
+        Assert.Equal(DateTimeKind.Utc, time!.Value.Kind);
+    }
+
+    [PrinterFact]
+    public async Task Missing_file_is_an_ftp_reply_and_the_connection_survives()
+    {
+        await using var client = CreateClient();
+        await client.ConnectAsync();
+        var target = Path.Combine(Path.GetTempPath(), $"layerlapse-missing-{Guid.NewGuid():N}.jpg");
+
+        var error = await Assert.ThrowsAsync<FtpReplyException>(() => client.DownloadAsync("/timelapse/thumbnail/does-not-exist.jpg", target));
+        Assert.Equal(550, error.ReplyCode);
+        Assert.NotEmpty(await client.ListAsync("/timelapse/"));
+        File.Delete(target);
+    }
+
+    [PrinterFact]
     public async Task Exposes_serial_from_certificate()
     {
         await using var client = CreateClient();

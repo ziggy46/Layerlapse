@@ -192,6 +192,15 @@ public sealed class PrinterSetupService(
         return updated;
     }
 
+    /// <summary>A session for browsing the saved printer, using the stored code and pinned certificate.</summary>
+    /// <exception cref="AccessCodeMissingException">The store has no code for this printer.</exception>
+    public async Task<PrinterSession> OpenSessionAsync(PrinterProfile profile, CancellationToken cancellationToken = default)
+    {
+        var code = await credentials.GetAsync(profile.Id, cancellationToken)
+            ?? throw new AccessCodeMissingException("No access code is saved for this printer. Enter it again.");
+        return new PrinterSession(new PrinterConnection(profile.Host, code, profile.PinnedFingerprint), clientFactory);
+    }
+
     /// <summary>Records the model the user picked when it could not be detected.</summary>
     public async Task<PrinterProfile> SetModelAsync(PrinterProfile profile, string model, CancellationToken cancellationToken = default)
     {

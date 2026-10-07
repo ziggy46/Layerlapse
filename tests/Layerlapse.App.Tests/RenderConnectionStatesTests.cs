@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Headless;
+using Avalonia.Controls;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Layerlapse.App.ViewModels;
 using Layerlapse.App.Views;
 using Layerlapse.Core.Credentials;
@@ -139,6 +141,63 @@ public sealed class RenderConnectionStatesTests : IDisposable
             Render(vm, "real-discovery", light: false, redact: true);
             return 0;
         }, CancellationToken.None);
+    }
+
+    /// <summary>Acceptance view for milestone 4: the real printer's timelapses with thumbnails.</summary>
+    [RenderFact]
+    public async Task Renders_real_timelapse_grid()
+    {
+        var host = Environment.GetEnvironmentVariable("LAYERLAPSE_IP");
+        var code = Environment.GetEnvironmentVariable("LAYERLAPSE_CODE");
+        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(code))
+        {
+            return;
+        }
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(HeadlessApp));
+        await session.Dispatch(async () =>
+        {
+            var setup = new PrinterSetupService(
+                new InMemoryCredentialStore(), new JsonPrinterProfileStore(Path.Combine(_folder, "p.json")), c => new BambuFtpsClient(c));
+            var main = new MainViewModel(
+                new ConnectionViewModel(setup), setup,
+                id => new Layerlapse.Core.Timelapses.TimelapseCache(Path.Combine(_folder, "cache", Layerlapse.Core.Timelapses.TimelapseCache.SafeFolderName(id))),
+                new NoPlayer());
+            await main.InitializeAsync();
+            main.Connection.Host = host;
+            main.Connection.AccessCode = code;
+            await main.Connection.SaveCommand.ExecuteAsync(null);
+
+            for (var i = 0; i < 300 && (main.Timelapses is not { Items.Count: > 0 } grid || grid.Items.Take(12).Any(t => t.Thumbnail is null)); i++)
+            {
+                await Task.Delay(100);
+                Dispatcher.UIThread.RunJobs();
+            }
+
+            Assert.Equal(AppPage.Timelapses, main.CurrentPage);
+            Assert.NotEmpty(main.Timelapses!.Items);
+            var window = new MainWindow { DataContext = main, Width = 1200, Height = 760 };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            Save(window, "timelapse-grid");
+            await main.Timelapses.DisposeAsync();
+            return 0;
+        }, CancellationToken.None);
+    }
+
+    private sealed class NoPlayer : Layerlapse.Core.Timelapses.IVideoPlayer
+    {
+        public void Play(string localPath)
+        {
+        }
+    }
+
+    private static void Save(Avalonia.Controls.Window window, string name)
+    {
+        var frame = window.CaptureRenderedFrame() ?? throw new InvalidOperationException("Nothing rendered.");
+        Directory.CreateDirectory(OutputFolder!);
+        frame.Save(Path.Combine(OutputFolder!, name + ".png"), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+        window.Close();
     }
 
     private static void Render(ConnectionViewModel connection, string name, bool light, bool redact = false)

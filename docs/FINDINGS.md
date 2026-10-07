@@ -253,10 +253,68 @@ Only `BL-P001` and the serial prefix `00M` (both X1 Carbon) are verified. The ot
 Unknown codes or prefixes leave the model empty, and the app asks the user to pick it. The model is
 never taken from the printer's name, because the name is user-editable.
 
+## 2026-10-07: milestone 4 (timelapse browser)
+
+### Is the filename the print start and the modification time the end? **Yes, on two different clocks.**
+
+- **Listing and MDTM times are UTC.** `MDTM` and `LIST` agree (curl's `Last-Modified` for
+  `video_2025-07-07_07-17-11.mp4` is `06:57:46 GMT`, the same as `MDTM` through `BambuFtpsClient`; printer
+  test `Exact_modification_time_matches_curl`). `MDTM` gives seconds for every file, including old ones
+  whose listing shows only a date.
+- **Filenames use the printer's own clock**, which is UTC−5 on this printer, while the Mac is UTC−4. Camera
+  segments show it: `ipcam-record.2026-10-04_19-37-22.2.mp4` (a 5-minute segment) was modified at
+  `00:41 UTC` the next day, which is the filename time plus 5 h 04 min.
+- **Since about December 2025, every timelapse was modified at least 5.15 h after its filename time**,
+  consistent with a start on a UTC−5 clock and an end in UTC.
+- **Before December 2025 the printer's clock or time zone was different**: many files were "modified" up
+  to 2.8 h *before* their filename time. Durations for those files cannot be worked out.
+
+```bash
+# MDTM for every timelapse, then delta = MDTM - filename time
+curl -sS -k -I -u "bblp:$LAYERLAPSE_CODE" "ftps://<printer-ip>:990/timelapse/<name>" | grep -i last-modified
+```
+
+**What the app does:** it measures the printer's offset from its camera recordings (the smallest
+`modified − name`, rounded down to 15 minutes; 5 h here). When there are no recordings, it falls back to this
+computer's time zone and says so. Duration = modified (UTC) − (filename time + offset). It is shown only
+when it is between 0 and 48 h, and always marked "≈ … approximate". The start time is shown exactly as in the
+filename. For the owner's printer, durations are known for 48 of 74 timelapses. A user setting for the
+printer's time zone is a possible later addition.
+
+### Speed (acceptance: list in a few seconds on the second launch)
+
+74 timelapses, measured against the real printer (`TimelapseLibraryPrinterTests.Cold_and_warm_timings`):
+
+| | Time |
+| --- | --- |
+| First launch: list plus MDTM for each file | 2.0 s |
+| First launch: all 74 thumbnails (about 15 KB each, one connection) | 9.5 s more, filling in as they arrive |
+| Second launch: grid shown from the cache | 11 ms |
+| Second launch: background refresh (no MDTM needed for known files) | 1.4 s |
+
+### Playback (acceptance: a video plays with seeking)
+
+`video_2026-09-15_16-12-12.mp4` (5,424,735 bytes, 163 frames, 6.75 s) was fetched through the app's own
+path (`TimelapseLibrary` → cache → `DefaultAppVideoPlayer`; `Layerlapse.Spike play`). It was byte-identical to
+curl's copy (SHA-256 `CEF5DE73…`), decoded at 3.4 s with `ffmpeg -ss 3.4`, and opened in the default player
+(IINA on this Mac). Seeking in the player itself was not exercised by Claude, which cannot click IINA.
+
+The built-in player (LibVLCSharp) is not used yet: `LibVLCSharp.Avalonia` 3.10.1 depends on Avalonia
+11.3.13 or later, and this app is on Avalonia 12, so it would need testing. Its native packages also add about
+100 MB per platform. The plan's fallback, the OS default player, is used instead.
+
+### FTP detail found on the way
+
+After a `550` reply (file not found), the next transfer failed with "did not resume the TLS session". The
+client had started the data connection's TLS handshake before reading the reply, and BouncyCastle
+invalidates a session when a resumption attempt is abandoned. vsftpd answers `150` before it starts TLS on the
+data connection, so the client now reads the reply first. Printer test
+`Missing_file_is_an_ftp_reply_and_the_connection_survives` covers it.
+
 ## Still open
 
 - What is inside a `.gcode.3mf`: milestone 6.
 - Whether listing or downloading during an active print causes slowdown or disconnects: not tested. The
-  printer's state during these runs is unknown.
+  printer appeared idle during these runs (its last camera recording was from 2026-10-04).
 - Whether FluentFTP works on Windows: SChannel may resume TLS sessions there. Not tested, and moot
   unless we want two code paths.

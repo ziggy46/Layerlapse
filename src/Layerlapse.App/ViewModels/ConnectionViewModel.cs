@@ -149,13 +149,16 @@ public partial class ConnectionViewModel(PrinterSetupService setup, IPrinterDisc
     /// <summary>At launch: reconnect to the last printer with no typing, or show setup.</summary>
     public async Task InitializeAsync()
     {
-        Profile = await setup.GetLastAsync();
-        if (Profile is null)
+        var last = await setup.GetLastAsync();
+        if (last is null)
         {
             ShowSetup();
             return;
         }
 
+        // Connecting before the profile appears, so nothing mistakes the initial state for "needs setup".
+        State = ConnectionState.Connecting;
+        Profile = last;
         await ReconnectAsync();
     }
 

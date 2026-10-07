@@ -4,7 +4,7 @@ namespace Layerlapse.Core.Tests;
 
 public class UnixListingParserTests
 {
-    private static readonly DateTime Now = new(2026, 10, 6, 8, 0, 0);
+    private static readonly DateTime Now = new(2026, 10, 6, 8, 0, 0, DateTimeKind.Utc);
 
     [Fact]
     public void Parses_recent_entry_with_time()
@@ -16,7 +16,8 @@ public class UnixListingParserTests
         Assert.Equal("video_2026-10-04_09-44-43.mp4", entry.Name);
         Assert.Equal("/timelapse/video_2026-10-04_09-44-43.mp4", entry.FullPath);
         Assert.Equal(32922829, entry.Size);
-        Assert.Equal(new DateTime(2026, 10, 4, 23, 44, 0), entry.Modified);
+        Assert.Equal(new DateTime(2026, 10, 4, 23, 44, 0, DateTimeKind.Utc), entry.Modified);
+        Assert.Equal(DateTimeKind.Utc, entry.Modified.Kind);
         Assert.False(entry.IsDirectory);
     }
 

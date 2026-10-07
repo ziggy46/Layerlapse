@@ -5,8 +5,8 @@ namespace Layerlapse.Core.Printers;
 
 /// <summary>
 /// Parses vsftpd's Unix "ls -l" style LIST output. Recent entries show a time ("Oct 04 23:44"),
-/// older ones a year ("Jul 07  2025"). Times are the printer's local clock, so they are returned
-/// as <see cref="DateTimeKind.Unspecified"/>.
+/// older ones a year ("Jul 07  2025"). vsftpd lists times in UTC (they match MDTM), so results are
+/// <see cref="DateTimeKind.Utc"/>. Pass the current UTC time as <c>now</c> to infer the year.
 /// </summary>
 public static partial class UnixListingParser
 {
@@ -60,12 +60,12 @@ public static partial class UnixListingParser
 
         if (!timeOrYear.Contains(':'))
         {
-            return new DateTime(int.Parse(timeOrYear, CultureInfo.InvariantCulture), monthNumber, dayNumber, 0, 0, 0, DateTimeKind.Unspecified);
+            return new DateTime(int.Parse(timeOrYear, CultureInfo.InvariantCulture), monthNumber, dayNumber, 0, 0, 0, DateTimeKind.Utc);
         }
 
         var parts = timeOrYear.Split(':');
         var candidate = new DateTime(now.Year, monthNumber, dayNumber,
-            int.Parse(parts[0], CultureInfo.InvariantCulture), int.Parse(parts[1], CultureInfo.InvariantCulture), 0, DateTimeKind.Unspecified);
+            int.Parse(parts[0], CultureInfo.InvariantCulture), int.Parse(parts[1], CultureInfo.InvariantCulture), 0, DateTimeKind.Utc);
 
         // "ls" shows a time only for entries within the last six months, so a date in the future
         // belongs to the previous year.

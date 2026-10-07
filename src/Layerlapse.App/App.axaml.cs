@@ -27,7 +27,7 @@ public partial class App : Application
                 JsonPrinterProfileStore.CreateDefault(),
                 connection => new BambuFtpsClient(connection),
                 discovery);
-            var main = new MainViewModel(new ConnectionViewModel(setup, discovery));
+            var main = new MainViewModel(new ConnectionViewModel(setup, discovery), setup);
             desktop.MainWindow = new MainWindow { DataContext = main };
 
             // Reconnect to the last printer with no typing; the view shows progress and any error.

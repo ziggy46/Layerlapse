@@ -87,7 +87,24 @@ public sealed partial class BambuFtpsClient : IPrinterClient
         var buffer = new MemoryStream();
         await TransferAsync($"LIST {CheckPath(remoteFolder)}", buffer, null, cancellationToken);
         var text = Encoding.UTF8.GetString(buffer.GetBuffer(), 0, (int)buffer.Length);
-        return UnixListingParser.Parse(text, remoteFolder, DateTime.Now);
+        return UnixListingParser.Parse(text, remoteFolder, DateTime.UtcNow);
+    }
+
+    public async Task<DateTime?> GetModifiedTimeAsync(string remotePath, CancellationToken cancellationToken = default)
+    {
+        var reply = await CommandAsync($"MDTM {CheckPath(remotePath)}", cancellationToken);
+        if (reply.Code != 213)
+        {
+            return null;
+        }
+
+        // "213 20261004234443" (UTC, optionally with fractional seconds)
+        var value = reply.Text.Length > 4 ? reply.Text[4..].Trim() : "";
+        return DateTime.TryParseExact(
+            value.Split('.')[0], "yyyyMMddHHmmss", CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var time)
+            ? time
+            : null;
     }
 
     public async Task DownloadAsync(
@@ -128,20 +145,18 @@ public sealed partial class BambuFtpsClient : IPrinterClient
         using var dataSocket = await OpenSocketAsync(port, cancellationToken);
         await WriteLineAsync(command, cancellationToken);
 
-        // vsftpd sends 150 and then starts the TLS handshake on the data connection, so run them together.
-        var dataTls = new TlsClientProtocol(dataSocket.GetStream());
-        var dataClient = new PinnedTlsClient(c => c.Fingerprint == CertificateFingerprint, _session);
-        var handshake = Task.Run(() => dataTls.Connect(dataClient), cancellationToken);
-
+        // vsftpd answers 150 before it starts TLS on the data connection, so read the reply first and only then
+        // shake hands. Starting the handshake early and abandoning it (for example after "550 not found")
+        // makes BouncyCastle invalidate the session, and every later transfer would fail to resume it.
         var preliminary = await ReadReplyAsync(cancellationToken);
         if (preliminary.Code is not (125 or 150))
         {
-            dataSocket.Dispose();
-            await handshake.ContinueWith(_ => { }, TaskScheduler.Default);
             throw new FtpReplyException(command.Split(' ')[0], preliminary);
         }
 
-        await handshake;
+        var dataTls = new TlsClientProtocol(dataSocket.GetStream());
+        var dataClient = new PinnedTlsClient(c => c.Fingerprint == CertificateFingerprint, _session);
+        await Task.Run(() => dataTls.Connect(dataClient), cancellationToken);
         if (!dataClient.Resumed)
         {
             throw new IOException("Data connection did not resume the control TLS session.");
@@ -305,9 +320,14 @@ internal sealed class FtpReply(int code, string text)
 public sealed class FtpReplyException : IOException
 {
     internal FtpReplyException(string command, FtpReply reply)
-        : base($"{command} failed: {reply.Text}")
+        : this(command, reply.Code, reply.Text)
     {
-        ReplyCode = reply.Code;
+    }
+
+    public FtpReplyException(string command, int replyCode, string replyText)
+        : base($"{command} failed: {replyText}")
+    {
+        ReplyCode = replyCode;
     }
 
     public int ReplyCode { get; }

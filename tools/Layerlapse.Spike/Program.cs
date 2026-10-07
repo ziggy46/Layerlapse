@@ -1,9 +1,11 @@
 // Milestone 1 spike: connect over implicit FTPS, list /timelapse/, download the smallest video.
 // Read-only. Reads LAYERLAPSE_IP and LAYERLAPSE_CODE; never prints the code.
 // Usage: dotnet run --project tools/Layerlapse.Spike -- <output-folder>
+//        dotnet run --project tools/Layerlapse.Spike -- play <video name> <cache folder>
 using System.Diagnostics;
 using System.Security.Cryptography;
 using Layerlapse.Core.Printers;
+using Layerlapse.Core.Timelapses;
 
 var host = Environment.GetEnvironmentVariable("LAYERLAPSE_IP");
 var code = Environment.GetEnvironmentVariable("LAYERLAPSE_CODE");
@@ -11,6 +13,21 @@ if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(code))
 {
     Console.Error.WriteLine("Set LAYERLAPSE_IP and LAYERLAPSE_CODE.");
     return 2;
+}
+
+if (args is ["play", var videoName, var cacheFolder])
+{
+    // Same path as the app's Play button: library -> cache -> default player.
+    await using var session = new PrinterSession(new PrinterConnection(host, code), c => new BambuFtpsClient(c));
+    var library = new TimelapseLibrary(session, new TimelapseCache(cacheFolder));
+    var video = (await library.RefreshAsync()).Timelapses.Single(t => t.Name == videoName);
+    var watch = Stopwatch.StartNew();
+    var path = await library.GetVideoAsync(video);
+    Console.WriteLine($"Cached {video.Name} ({video.Size:N0} bytes) in {watch.ElapsedMilliseconds} ms at {path}");
+    Console.WriteLine($"SHA-256: {Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(path)))}");
+    new DefaultAppVideoPlayer().Play(path);
+    Console.WriteLine("Opened in the default player.");
+    return 0;
 }
 
 var outDir = args.Length > 0 ? args[0] : Path.Combine(Path.GetTempPath(), "layerlapse-spike");

@@ -20,6 +20,9 @@ public interface IPrinterClient : IAsyncDisposable
 
     Task<IReadOnlyList<RemoteEntry>> ListAsync(string remoteFolder, CancellationToken cancellationToken = default);
 
+    /// <summary>Exact modification time in UTC (FTP MDTM), or null if the printer does not say.</summary>
+    Task<DateTime?> GetModifiedTimeAsync(string remotePath, CancellationToken cancellationToken = default);
+
     /// <summary>Downloads one file, overwriting <paramref name="localPath"/>. Progress reports bytes transferred.</summary>
     Task DownloadAsync(
         string remotePath,
