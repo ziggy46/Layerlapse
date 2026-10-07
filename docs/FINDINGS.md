@@ -487,8 +487,8 @@ Release builds.
 
 The Settings page shows the version (0.7.0, from `Directory.Build.props`), the unofficial statement and
 "Check for updates". The checker reads a GitHub "latest release" feed, never downloads anything and fails
-silently. It stays off until `UpdateChecker.DefaultFeed` is set, because the repository has no release page
-yet.
+silently. It points at github.com/ziggy46/Layerlapse's latest release (set when the repository was made public);
+until a release exists GitHub answers 404, which counts as "no update".
 
 ### Installers
 
@@ -498,7 +498,7 @@ on when the certificate secrets listed in the workflow are added.
 - The macOS steps were run locally as extracted from the workflow: `Layerlapse-0.7.0-osx-arm64.dmg` (52 MB),
   `hdiutil verify` VALID, bundle id `app.layerlapse.Layerlapse`, version 0.7.0, the Local Network
   description, ad-hoc signed, and no `DevEnvFileCredentialStore` in the Release DLL.
-- Windows and Linux packaging and the GitHub release job have not run: the repository has no remote.
+- Windows and Linux packaging and the GitHub release job had not run before the repository was published.
 - With ad-hoc signing, every new version has a different code signature, so macOS asks for Keychain access
   again after each update. A Developer ID certificate fixes this.
 

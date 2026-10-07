@@ -195,7 +195,7 @@ Resolve these during milestones 1 to 3, and write the answers back into this doc
 - [ ] Provide a Bambu Studio screenshot in dark and light so exact colours can be sampled.
 - [ ] Where should downloads go by default?
 - [x] In-app updates, or manual download of each new version? *An update check that links to the release page; it never installs anything. Off until a release feed exists (2026-10-07).*
-- [ ] Repository public or private, and which licence?
+- [x] Repository public or private, and which licence? *Public at github.com/ziggy46/Layerlapse, MIT licence (2026-10-07).*
 - [x] Should the app ever be able to delete files from the printer? *Timelapses only, off by default, one at a time with confirmation (2026-10-07).*
 - [x] Printer time zone setting: not now; the offset is measured from camera recordings (2026-10-07).
 - [x] Video cache cap: 2 GB, least recently used removed first (2026-10-07).

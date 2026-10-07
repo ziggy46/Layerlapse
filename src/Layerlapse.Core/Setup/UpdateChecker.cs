@@ -5,12 +5,12 @@ namespace Layerlapse.Core.Setup;
 
 /// <summary>
 /// Looks for a newer release on a GitHub-style "latest release" feed and returns its page. Never downloads or
-/// installs anything. Disabled while <see cref="DefaultFeed"/> is null (the repository has no release page yet).
+/// installs anything. Until the first release is published the feed answers 404, which counts as "no update".
 /// </summary>
 public sealed class UpdateChecker(HttpClient http, Uri? feed)
 {
-    /// <summary>Set to https://api.github.com/repos/&lt;owner&gt;/&lt;repo&gt;/releases/latest once releases exist.</summary>
-    public static readonly Uri? DefaultFeed = null;
+    /// <summary>The public repository's latest release.</summary>
+    public static readonly Uri? DefaultFeed = new("https://api.github.com/repos/ziggy46/Layerlapse/releases/latest");
 
     public bool IsConfigured => feed is not null;
 
@@ -30,7 +30,15 @@ public sealed class UpdateChecker(HttpClient http, Uri? feed)
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(10));
-            var release = await http.GetFromJsonAsync<Release>(feed, timeout.Token);
+            using var request = new HttpRequestMessage(HttpMethod.Get, feed);
+            request.Headers.UserAgent.ParseAdd($"Layerlapse/{CurrentVersion}"); // GitHub's API requires a User-Agent
+            using var response = await http.SendAsync(request, timeout.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var release = await response.Content.ReadFromJsonAsync<Release>(timeout.Token);
             return release is { TagName: { } tag, HtmlUrl: { } page } && TryParse(tag, out var latest) && latest > CurrentVersion
                 ? new AvailableUpdate(latest, page)
                 : null;

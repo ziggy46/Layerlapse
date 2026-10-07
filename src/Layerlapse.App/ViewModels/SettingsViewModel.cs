@@ -68,7 +68,7 @@ public partial class SettingsViewModel(
     {
         if (updates is not { IsConfigured: true })
         {
-            UpdateText = "Update checks start once Layerlapse has a release page.";
+            UpdateText = "Update checks are not set up in this build.";
             return;
         }
 
