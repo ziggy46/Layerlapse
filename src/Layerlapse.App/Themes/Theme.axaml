@@ -90,6 +90,15 @@
       </LinearGradientBrush>
       <SolidColorBrush x:Key="XpTitleTextBrush" Color="#FFFFFF" />
       <SolidColorBrush x:Key="XpFrameBrush" Color="#0846D8" />
+
+      <!-- Check boxes: XP's square white box, dark blue border, green tick; Fluent's 32 px row shrinks to 20 -->
+      <x:Double x:Key="CheckBoxMinHeight">20</x:Double>
+      <LinearGradientBrush x:Key="XpCheckBoxBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#DCDCD7" />
+        <GradientStop Offset="0.6" Color="#FFFFFF" />
+      </LinearGradientBrush>
+      <SolidColorBrush x:Key="XpCheckBoxBorderBrush" Color="#1C5180" />
+      <SolidColorBrush x:Key="XpCheckGlyphBrush" Color="#21A121" />
       <Color x:Key="XpTitleShadowColor">#0F1089</Color>
       <LinearGradientBrush x:Key="XpCaptionButtonBrush" StartPoint="0%,0%" EndPoint="100%,100%">
         <GradientStop Offset="0" Color="#5B9AFF" />
