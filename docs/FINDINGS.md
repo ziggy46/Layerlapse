@@ -7,6 +7,10 @@ Conventions: `<printer-ip>` stands for `$LAYERLAPSE_IP`. The access code is only
 out the `PASS` line). The printer serial and certificate fingerprint are shortened, because the repository
 may become public.
 
+> **Removed tools (2026-10-07):** at the owner's request the repository went back to the plan's layout.
+> `tools/Layerlapse.Spike`, `scripts/make-macos-bundle.sh` and `tests/Layerlapse.App.Tests` (view-model
+> tests and headless renders) are gone. Commands below that use them work at commit `7e02fa2`.
+
 ## 2026-10-06: milestone 1 (FTPS spike)
 
 Environment: macOS (Darwin 27), .NET SDK 10.0.401, FluentFTP 55.0.0, BouncyCastle.Cryptography 2.7.0,
