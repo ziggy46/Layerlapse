@@ -364,6 +364,20 @@ LAYERLAPSE_HEAVY_TESTS=1 dotnet test --filter "FullyQualifiedName~Interrupted_la
 curl -sS -k -u "bblp:$LAYERLAPSE_CODE" "ftps://<printer-ip>:990/timelapse/video_2026-09-12_22-39-03.mp4" -o ref.mp4 && shasum -a 256 ref.mp4
 ```
 
+### Checked by hand in the app (2026-10-07)
+
+Using the dev `.app` (built from the removed bundle script, kept outside the repository), Claude clicked
+through the real UI against the printer:
+- Ticked two cards, then "Download 2 timelapses", chose a folder in the system picker: "2 saved", both files
+  matched the printer's sizes and curl's SHA-256, the selection cleared, and "Show folder" appeared.
+- Downloaded the 54.1 MB card: the bar showed "Downloading 1 of 1 · 16.5 MB of 54.1 MB" and the card showed
+  its percentage. Cancel left a 43,204,608-byte `.part` file and the card said "Cancelled. Download again to
+  continue where it stopped."
+- Download again: the `.part` file grew from there and finished in about 8 s (a full download takes about
+  38 s); the card said "Saved (continued from an earlier download)" and the file matched curl's SHA-256.
+- Downloading an already saved file: "1 already in the folder".
+- The picker opened in the last folder used each time.
+
 ### Other findings
 
 - **The printer accepts `REST` in binary mode** (vsftpd replies `350`). The client sends it after `PASV` and
