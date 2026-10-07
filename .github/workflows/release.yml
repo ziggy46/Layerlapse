@@ -1,6 +1,8 @@
 name: Release
 
 # Builds installers for macOS, Windows and Linux. Runs for version tags (v1.2.3) and by hand.
+# File names carry no version, so https://github.com/ziggy46/Layerlapse/releases/latest/download/<name>
+# (the README's download buttons) always points at the newest release.
 # Unsigned for now: macOS builds are ad-hoc signed, so Gatekeeper warns on first open and the Keychain asks
 # again after each update. Adding the secrets below turns on Developer ID signing and notarization.
 #   MACOS_CERTIFICATE_P12 (base64), MACOS_CERTIFICATE_PASSWORD, MACOS_SIGNING_IDENTITY,
@@ -107,7 +109,7 @@ jobs:
           codesign --verify --deep --strict "$app"
 
           mkdir -p out
-          dmg="out/Layerlapse-${VERSION}-${{ matrix.rid }}.dmg"
+          dmg="out/Layerlapse-${{ matrix.rid }}.dmg"
           hdiutil create -volname Layerlapse -srcfolder dist -ov -format UDZO "$dmg"
           if [[ -n "${MACOS_CERTIFICATE_P12:-}" && -n "${APPLE_ID:-}" ]]; then
             xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
@@ -119,7 +121,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
-          Compress-Archive -Path publish/* -DestinationPath "out/Layerlapse-${{ steps.version.outputs.version }}-${{ matrix.rid }}-portable.zip"
+          Compress-Archive -Path publish/* -DestinationPath "out/Layerlapse-${{ matrix.rid }}-portable.zip"
 
       - name: Windows installer (Inno Setup)
         if: runner.os == 'Windows'
@@ -153,7 +155,7 @@ jobs:
           Compression=lzma2
           SolidCompression=yes
           OutputDir=out
-          OutputBaseFilename=Layerlapse-$env:VERSION-win-x64-setup
+          OutputBaseFilename=Layerlapse-win-x64-setup
 
           [Tasks]
           Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -210,7 +212,7 @@ jobs:
           DESKTOP
           sed -i 's/^          //' "$name/layerlapse.desktop"
           mkdir -p out
-          tar -czf "out/$name.tar.gz" "$name"
+          tar -czf "out/Layerlapse-${{ matrix.rid }}.tar.gz" "$name"
 
       - uses: actions/upload-artifact@v4
         with:

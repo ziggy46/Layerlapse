@@ -5,6 +5,31 @@ lets you browse, play and download its timelapses and models, without a phone or
 
 > Layerlapse is not made, endorsed or supported by Bambu Lab. "Bambu Lab" is a trademark of its owner.
 
+[![Latest release](https://img.shields.io/github/v/release/ziggy46/Layerlapse?label=latest%20release&color=00AE42)](https://github.com/ziggy46/Layerlapse/releases/latest)
+
+## Download
+
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-00AE42?style=for-the-badge)](https://github.com/ziggy46/Layerlapse/releases/latest/download/Layerlapse-win-x64-setup.exe)
+[![Download for macOS (Apple Silicon)](https://img.shields.io/badge/Download-macOS%20%28Apple%20Silicon%29-00AE42?style=for-the-badge)](https://github.com/ziggy46/Layerlapse/releases/latest/download/Layerlapse-osx-arm64.dmg)
+[![Download for macOS (Intel)](https://img.shields.io/badge/Download-macOS%20%28Intel%29-00AE42?style=for-the-badge)](https://github.com/ziggy46/Layerlapse/releases/latest/download/Layerlapse-osx-x64.dmg)
+[![Download for Linux](https://img.shields.io/badge/Download-Linux-00AE42?style=for-the-badge)](https://github.com/ziggy46/Layerlapse/releases/latest/download/Layerlapse-linux-x64.tar.gz)
+
+Each button downloads the newest release. Windows also has a
+[portable zip](https://github.com/ziggy46/Layerlapse/releases/latest/download/Layerlapse-win-x64-portable.zip),
+and every version is on the [releases page](https://github.com/ziggy46/Layerlapse/releases).
+
+## Screenshots
+
+![Timelapses in the Dark theme: a grid of thumbnails with start time, size and approximate print time](docs/images/timelapses-dark.png)
+
+| Models, with previews read from inside each file | Settings in the Light theme |
+| --- | --- |
+| ![Models page with previews, print times and weights](docs/images/models-dark.png) | ![Settings page in the Light theme](docs/images/settings-light.png) |
+
+**Windows XP theme (Windows only):**
+
+![Timelapses in the Windows XP theme, with its blue title bar and side pane](docs/images/timelapses-xp.png)
+
 ## What it does
 
 - **Finds your printer** from its network announcements, or by scanning the local network on request, or by IP
@@ -37,13 +62,11 @@ and asks for confirmation each time. It never touches models, certificates or ot
 
 ## Install
 
-Download the installer for your system from the
-[releases page](https://github.com/ziggy46/Layerlapse/releases):
-
-- **Windows:** `Layerlapse-<version>-win-x64-setup.exe` installs for your user only (no administrator rights),
-  adds a Start menu entry and an uninstaller. A portable `.zip` is also available.
-- **macOS:** the `.dmg` for Apple Silicon (`osx-arm64`) or Intel (`osx-x64`).
-- **Linux:** the `.tar.gz`; extract it and run `Layerlapse`.
+- **Windows:** run `Layerlapse-win-x64-setup.exe`. It installs for your user only (no administrator rights),
+  adds a Start menu entry and an uninstaller. The portable `.zip` runs without installing.
+- **macOS:** open the `.dmg` for Apple Silicon (`osx-arm64`) or Intel (`osx-x64`) and drag Layerlapse to
+  Applications.
+- **Linux:** extract the `.tar.gz` and run `Layerlapse`.
 
 Builds are not signed yet:
 - **macOS:** the first time, right-click the app and choose Open. macOS asks for Keychain access after each
