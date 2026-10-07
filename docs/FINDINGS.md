@@ -179,6 +179,30 @@ Notes for the discovery module:
 - The USN serial equals the certificate CN, so a printer found by the port 990 fallback can be matched
   to a discovered one by serial.
 
+## 2026-10-06: milestone 2 (connection and credentials)
+
+### What does a wrong access code look like? **`530` at `PASS`.**
+
+```bash
+curl -sS -k -u "bblp:00000000" "ftps://<printer-ip>:990/" -o /dev/null   # curl: (67) Access denied: 530
+```
+
+`BambuFtpsClient` maps this to `PrinterAuthenticationException`, which tells the user where to find the
+code. Printer test `Wrong_access_code_gives_a_clear_error` checks this once per run (one failed login),
+and the headless render test shows the message in the real UI.
+
+### Credential stores
+
+| OS | Store | Verified |
+| --- | --- | --- |
+| macOS | Login keychain, generic password, service `Layerlapse`, account = serial | Round trip test passed with no access prompt (`LAYERLAPSE_CREDENTIAL_TESTS=1 dotnet test --filter Category=CredentialStore`) |
+| Linux | Secret Service via libsecret, schema `app.layerlapse.PrinterAccessCode` | Round trip passed in `mcr.microsoft.com/dotnet/sdk:10.0` with `gnome-keyring-daemon` under `dbus-run-session`. With no daemon, libsecret reports "Cannot autolaunch D-Bus without X11 $DISPLAY"; the app then connects and warns that the code will not be remembered |
+| Windows | Credential Manager, generic credential `Layerlapse:printer:<serial>` | Compiles only; not run |
+
+macOS caveat: keychain items created by an ad-hoc signed development build trust that exact binary.
+After a rebuild, macOS may ask "Layerlapse wants to use your confidential information" once; choose
+Always Allow. Signed release builds (milestone 7) will not have this.
+
 ## Still open
 
 - What is inside a `.gcode.3mf`: milestone 6.

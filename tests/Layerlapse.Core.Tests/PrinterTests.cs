@@ -74,6 +74,35 @@ public class PrinterTests(ITestOutputHelper output)
         Assert.Equal(64, error.ActualFingerprint.Length);
     }
 
+    [PrinterFact]
+    public async Task Exposes_serial_from_certificate()
+    {
+        await using var client = CreateClient();
+        await client.ConnectAsync();
+
+        Assert.False(string.IsNullOrWhiteSpace(client.Serial));
+        output.WriteLine($"Serial prefix: {client.Serial![..3]}");
+    }
+
+    [PrinterFact]
+    public async Task Wrong_access_code_gives_a_clear_error()
+    {
+        // One failed login per run; vsftpd drops the connection after repeated failures.
+        await using var client = new BambuFtpsClient(new PrinterConnection(PrinterEnvironment.Host!, "00000000"));
+
+        var error = await Assert.ThrowsAsync<PrinterAuthenticationException>(() => client.ConnectAsync());
+        Assert.Contains("access code", error.Message);
+        output.WriteLine(error.Message);
+    }
+
+    [PrinterFact]
+    public async Task Nothing_listening_gives_unreachable_error()
+    {
+        await using var client = new BambuFtpsClient(new PrinterConnection(PrinterEnvironment.Host!, "00000000", FtpsPort: 9));
+
+        await Assert.ThrowsAsync<PrinterUnreachableException>(() => client.ConnectAsync());
+    }
+
     private sealed class SyncProgress(Action<long> report) : IProgress<long>
     {
         public void Report(long value) => report(value);

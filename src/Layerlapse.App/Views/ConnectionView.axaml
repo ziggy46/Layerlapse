@@ -1,0 +1,123 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Layerlapse.App.ViewModels"
+             x:Class="Layerlapse.App.Views.ConnectionView"
+             x:DataType="vm:ConnectionViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.label">
+      <Setter Property="Margin" Value="0,8,0,4" />
+    </Style>
+    <Style Selector="TextBlock.secondary">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.title">
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.mono">
+      <Setter Property="FontFamily" Value="Menlo, Consolas, DejaVu Sans Mono, monospace" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <!-- White on green is only ~3:1, so primary buttons use bold 14 px labels (see Look and feel). -->
+    <Style Selector="Button.accent">
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="{DynamicResource CardBrush}"
+          BorderBrush="{DynamicResource LineBrush}"
+          BorderThickness="1" CornerRadius="4"
+          Padding="20" Width="440"
+          HorizontalAlignment="Center" VerticalAlignment="Center">
+    <StackPanel Spacing="4">
+
+      <!-- First-time setup, or entering a new code -->
+      <StackPanel IsVisible="{Binding IsSetup}" Spacing="0">
+        <TextBlock Classes="title" Text="Connect to your printer" />
+        <TextBlock Classes="secondary"
+                   Text="On the printer screen, find the IP address under Settings, then Network, and the access code under Settings, then LAN Only Mode. LAN Only Mode does not need to be switched on." />
+
+        <TextBlock Classes="label" Text="IP address" />
+        <TextBox Text="{Binding Host}" PlaceholderText="192.168.1.50" IsEnabled="{Binding !IsBusy}" />
+
+        <TextBlock Classes="label" Text="Access code" />
+        <TextBox Text="{Binding AccessCode}" PasswordChar="•" PlaceholderText="From LAN Only Mode" IsEnabled="{Binding !IsBusy}" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Classes="accent" Content="Save and connect" Command="{Binding SaveCommand}" IsDefault="True" />
+          <Button Content="Test" Command="{Binding TestCommand}" />
+          <Button Content="Cancel" Command="{Binding CancelEditCommand}" IsVisible="{Binding CanCancelEdit}" />
+        </StackPanel>
+
+        <TextBlock Classes="secondary" FontSize="12" Margin="0,12,0,0"
+                   Text="{Binding CredentialStoreName, StringFormat='The access code is kept in {0}, never in a file.'}" />
+      </StackPanel>
+
+      <!-- Reconnecting -->
+      <StackPanel IsVisible="{Binding IsConnecting}" Spacing="12">
+        <TextBlock Classes="title" Text="Connecting" />
+        <ProgressBar IsIndeterminate="True" />
+      </StackPanel>
+
+      <!-- Connected -->
+      <StackPanel IsVisible="{Binding IsConnected}" Spacing="2">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,0,8" />
+          <TextBlock Classes="title" Text="Connected" />
+        </StackPanel>
+        <TextBlock Text="{Binding PrinterTitle, StringFormat='Serial {0}'}" />
+        <TextBlock Classes="secondary" Text="{Binding PrinterDetail}" />
+        <TextBlock Classes="secondary" Margin="0,12,0,0" Text="Timelapse browsing is coming next." />
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Edit connection" Command="{Binding EditCommand}" />
+          <Button Content="Forget printer" Command="{Binding ForgetCommand}" />
+        </StackPanel>
+      </StackPanel>
+
+      <!-- Saved printer unreachable -->
+      <StackPanel IsVisible="{Binding IsFailed}" Spacing="2">
+        <TextBlock Classes="title" Text="Could not connect" />
+        <TextBlock Text="{Binding PrinterTitle, StringFormat='Serial {0}'}" />
+        <TextBlock Classes="secondary" Text="{Binding PrinterDetail}" />
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Classes="accent" Content="Try again" Command="{Binding RetryCommand}" />
+          <Button Content="Edit connection" Command="{Binding EditCommand}" />
+          <Button Content="Forget printer" Command="{Binding ForgetCommand}" />
+        </StackPanel>
+      </StackPanel>
+
+      <!-- Certificate changed: warn loudly, never re-pin silently -->
+      <Border IsVisible="{Binding IsCertificateChanged}"
+              BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1" CornerRadius="4" Padding="12">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="title" Text="Security certificate changed" Foreground="{DynamicResource DangerBrush}" />
+          <TextBlock Text="{Binding PrinterTitle, StringFormat='Serial {0}'}" />
+          <TextBlock Classes="secondary" Text="Only trust the new certificate if you reset this printer or replaced its storage. Otherwise, check that the address belongs to your printer." />
+          <TextBlock Classes="label" Text="Trusted until now" />
+          <TextBlock Classes="mono" Text="{Binding ExpectedFingerprint}" />
+          <TextBlock Classes="label" Text="Presented now" />
+          <TextBlock Classes="mono" Text="{Binding ActualFingerprint}" />
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+            <Button Content="Trust new certificate" Command="{Binding TrustCertificateCommand}" />
+            <Button Content="Try again" Command="{Binding RetryCommand}" />
+            <Button Content="Forget printer" Command="{Binding ForgetCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Messages shared by every state -->
+      <TextBlock Classes="secondary" Text="{Binding Status}" IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,8,0,0" />
+      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,8,0,0" />
+      <TextBlock TextWrapping="Wrap" Text="{Binding Warning}" IsVisible="{Binding Warning, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,8,0,0" />
+    </StackPanel>
+  </Border>
+</UserControl>

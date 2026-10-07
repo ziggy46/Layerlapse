@@ -30,12 +30,22 @@ public sealed partial class BambuFtpsClient : IPrinterClient
 
     public string? CertificateFingerprint { get; private set; }
 
+    public string? Serial { get; private set; }
+
     /// <summary>The server's 220 greeting, for diagnostics.</summary>
     public string? Greeting { get; private set; }
 
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
-        _controlSocket = await OpenSocketAsync(_connection.FtpsPort, cancellationToken);
+        try
+        {
+            _controlSocket = await OpenSocketAsync(_connection.FtpsPort, cancellationToken);
+        }
+        catch (Exception e) when (e is SocketException || (e is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+        {
+            throw new PrinterUnreachableException(_connection.Host, e);
+        }
+
         var tlsClient = new PinnedTlsClient(AcceptControlCertificate);
         var tls = new TlsClientProtocol(_controlSocket.GetStream());
         try
@@ -44,9 +54,15 @@ public sealed partial class BambuFtpsClient : IPrinterClient
         }
         catch (TlsFatalAlert e) when (e.AlertDescription == AlertDescription.bad_certificate && CertificateFingerprint is not null)
         {
-            _controlSocket.Dispose();
-            _controlSocket = null;
+            CloseSocket();
             throw new PrinterCertificateMismatchException(_connection.PinnedFingerprint!, CertificateFingerprint);
+        }
+        catch (Exception e) when (e is TlsException or IOException)
+        {
+            CloseSocket();
+            throw new PrinterConnectionException(
+                $"Something at {_connection.Host} answered on port {_connection.FtpsPort}, but a secure connection could not be set up. It may not be a Bambu Lab printer.",
+                e);
         }
 
         _controlTls = tls;
@@ -54,7 +70,13 @@ public sealed partial class BambuFtpsClient : IPrinterClient
 
         Greeting = (await ReadReplyAsync(cancellationToken)).Expect(220);
         (await CommandAsync($"USER {PrinterConnection.User}", cancellationToken)).Expect(331);
-        (await CommandAsync($"PASS {_connection.AccessCode}", cancellationToken, isSecret: true)).Expect(230);
+        var login = await CommandAsync($"PASS {_connection.AccessCode}", cancellationToken, isSecret: true);
+        if (login.Code == 530)
+        {
+            throw new PrinterAuthenticationException(new FtpReplyException("PASS", login));
+        }
+
+        login.Expect(230);
         (await CommandAsync("PBSZ 0", cancellationToken)).Expect(200);
         (await CommandAsync("PROT P", cancellationToken)).Expect(200);
         (await CommandAsync("TYPE I", cancellationToken)).Expect(200);
@@ -108,7 +130,7 @@ public sealed partial class BambuFtpsClient : IPrinterClient
 
         // vsftpd sends 150 and then starts the TLS handshake on the data connection, so run them together.
         var dataTls = new TlsClientProtocol(dataSocket.GetStream());
-        var dataClient = new PinnedTlsClient(fp => fp == CertificateFingerprint, _session);
+        var dataClient = new PinnedTlsClient(c => c.Fingerprint == CertificateFingerprint, _session);
         var handshake = Task.Run(() => dataTls.Connect(dataClient), cancellationToken);
 
         var preliminary = await ReadReplyAsync(cancellationToken);
@@ -146,13 +168,20 @@ public sealed partial class BambuFtpsClient : IPrinterClient
         (await ReadReplyAsync(cancellationToken)).Expect(226);
     }
 
-    private bool AcceptControlCertificate(string fingerprint)
+    private bool AcceptControlCertificate(PrinterCertificate certificate)
     {
-        // Trust on first use: with no pin, accept and expose the fingerprint so the caller can save it.
-        // With a pin, the printer must present exactly that certificate.
-        CertificateFingerprint = fingerprint;
+        // Trust on first use: with no pin, accept and expose the fingerprint so the caller can save it
+        // once login succeeds. With a pin, the printer must present exactly that certificate.
+        CertificateFingerprint = certificate.Fingerprint;
+        Serial = certificate.CommonName;
         return _connection.PinnedFingerprint is null
-            || string.Equals(fingerprint, _connection.PinnedFingerprint, StringComparison.OrdinalIgnoreCase);
+            || string.Equals(certificate.Fingerprint, _connection.PinnedFingerprint, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void CloseSocket()
+    {
+        _controlSocket?.Dispose();
+        _controlSocket = null;
     }
 
     private async Task<TcpClient> OpenSocketAsync(int port, CancellationToken cancellationToken)
@@ -270,18 +299,6 @@ internal sealed class FtpReply(int code, string text)
     public string? Command { get; set; }
 
     public string Expect(int expected) => Code == expected ? Text : throw new FtpReplyException(Command ?? "connect", this);
-}
-
-/// <summary>
-/// The printer presented a different certificate from the one pinned on first connect. This can mean a
-/// factory reset or a different device at that address; the UI must warn loudly rather than reconnect.
-/// </summary>
-public sealed class PrinterCertificateMismatchException(string expected, string actual)
-    : IOException($"The printer's certificate changed. Expected SHA-256 {expected}, got {actual}.")
-{
-    public string ExpectedFingerprint { get; } = expected;
-
-    public string ActualFingerprint { get; } = actual;
 }
 
 /// <summary>The printer answered an FTP command with an unexpected reply. Never contains the access code.</summary>

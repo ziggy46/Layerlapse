@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using Org.BouncyCastle.Tls;
 using Org.BouncyCastle.Tls.Crypto;
 using Org.BouncyCastle.Tls.Crypto.Impl.BC;
+using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Security;
 
 namespace Layerlapse.Core.Printers;
@@ -14,13 +15,13 @@ namespace Layerlapse.Core.Printers;
 /// </summary>
 internal sealed class PinnedTlsClient : DefaultTlsClient
 {
-    private readonly Func<string, bool> _acceptFingerprint;
+    private readonly Func<PrinterCertificate, bool> _acceptCertificate;
     private readonly TlsSession? _sessionToResume;
 
-    public PinnedTlsClient(Func<string, bool> acceptFingerprint, TlsSession? sessionToResume = null)
+    public PinnedTlsClient(Func<PrinterCertificate, bool> acceptCertificate, TlsSession? sessionToResume = null)
         : base(new BcTlsCrypto(new SecureRandom()))
     {
-        _acceptFingerprint = acceptFingerprint;
+        _acceptCertificate = acceptCertificate;
         _sessionToResume = sessionToResume;
     }
 
@@ -34,7 +35,7 @@ internal sealed class PinnedTlsClient : DefaultTlsClient
 
     public override TlsSession? GetSessionToResume() => _sessionToResume;
 
-    public override TlsAuthentication GetAuthentication() => new FingerprintAuthentication(_acceptFingerprint);
+    public override TlsAuthentication GetAuthentication() => new FingerprintAuthentication(_acceptCertificate);
 
     public override void NotifyHandshakeComplete()
     {
@@ -47,7 +48,20 @@ internal sealed class PinnedTlsClient : DefaultTlsClient
 
     public static string Fingerprint(byte[] derCertificate) => Convert.ToHexString(SHA256.HashData(derCertificate));
 
-    private sealed class FingerprintAuthentication(Func<string, bool> acceptFingerprint) : TlsAuthentication
+    private static string? CommonName(byte[] derCertificate)
+    {
+        try
+        {
+            var subject = new Org.BouncyCastle.X509.X509Certificate(derCertificate).SubjectDN;
+            return subject.GetValueList(X509Name.CN).FirstOrDefault();
+        }
+        catch (Exception e) when (e is ArgumentException or Org.BouncyCastle.Security.Certificates.CertificateException or IOException)
+        {
+            return null;
+        }
+    }
+
+    private sealed class FingerprintAuthentication(Func<PrinterCertificate, bool> acceptCertificate) : TlsAuthentication
     {
         public void NotifyServerCertificate(TlsServerCertificate serverCertificate)
         {
@@ -57,8 +71,8 @@ internal sealed class PinnedTlsClient : DefaultTlsClient
                 throw new TlsFatalAlert(AlertDescription.bad_certificate);
             }
 
-            var fingerprint = Fingerprint(chain.GetCertificateAt(0).GetEncoded());
-            if (!acceptFingerprint(fingerprint))
+            var der = chain.GetCertificateAt(0).GetEncoded();
+            if (!acceptCertificate(new PrinterCertificate(Fingerprint(der), CommonName(der))))
             {
                 throw new TlsFatalAlert(AlertDescription.bad_certificate);
             }
