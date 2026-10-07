@@ -134,6 +134,7 @@ Match Bambu Studio's flat, dark, green-accented look so the app feels like part 
 - Dark by default, with a manual toggle to light. Design dark first.
 - Define every colour once, as named brushes in `Theme.axaml`. No hex values anywhere else.
 - White text on `#00AE42` is only about 3:1, too low for small text. Use bold labels of 14 px or more on green, or dark text.
+- Exception (owner's request, 2026-10-07): an optional **Windows XP** theme, offered on Windows only, recreates the XP look after XP.css (gradients, rounded glossy buttons, blue title bar drawn by the app). Its colours also live in `Theme.axaml`; Dark stays the default everywhere.
 
 ## Milestones and acceptance criteria
 

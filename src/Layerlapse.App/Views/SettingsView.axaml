@@ -27,6 +27,13 @@
 
       <Border Classes="section">
         <StackPanel Spacing="6">
+          <TextBlock Classes="heading" Text="Appearance" />
+          <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" MinWidth="180" />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="section">
+        <StackPanel Spacing="6">
           <TextBlock Classes="heading" Text="Deleting from the printer" />
           <ToggleSwitch IsChecked="{Binding AllowDelete}" OnContent="Allowed" OffContent="Off" />
           <TextBlock Classes="secondary"

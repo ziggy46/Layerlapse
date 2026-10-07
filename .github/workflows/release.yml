@@ -106,21 +106,88 @@ jobs:
           fi
           codesign --verify --deep --strict "$app"
 
-          dmg="Layerlapse-${VERSION}-${{ matrix.rid }}.dmg"
+          mkdir -p out
+          dmg="out/Layerlapse-${VERSION}-${{ matrix.rid }}.dmg"
           hdiutil create -volname Layerlapse -srcfolder dist -ov -format UDZO "$dmg"
           if [[ -n "${MACOS_CERTIFICATE_P12:-}" && -n "${APPLE_ID:-}" ]]; then
             xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
             xcrun stapler staple "$dmg"
           fi
-          echo "ARTIFACT=$dmg" >> "$GITHUB_ENV"
 
-      - name: Windows zip
+      - name: Windows portable zip
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $zip = "Layerlapse-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip"
-          Compress-Archive -Path publish/* -DestinationPath $zip
-          "ARTIFACT=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+          New-Item -ItemType Directory -Force out | Out-Null
+          Compress-Archive -Path publish/* -DestinationPath "out/Layerlapse-${{ steps.version.outputs.version }}-${{ matrix.rid }}-portable.zip"
+
+      - name: Windows installer (Inno Setup)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          choco install innosetup --no-progress -y | Out-Null
+          $iss = @"
+          ; Layerlapse installer: per-user, no admin rights needed.
+          [Setup]
+          AppId={{477A69B2-49F1-4AC3-B828-0F63F1802C97}
+          AppName=Layerlapse
+          AppVersion=$env:VERSION
+          AppVerName=Layerlapse $env:VERSION
+          AppPublisher=Layerlapse (unofficial)
+          AppPublisherURL=https://github.com/ziggy46/Layerlapse
+          AppSupportURL=https://github.com/ziggy46/Layerlapse/issues
+          AppUpdatesURL=https://github.com/ziggy46/Layerlapse/releases
+          DefaultDirName={localappdata}\Programs\Layerlapse
+          DefaultGroupName=Layerlapse
+          DisableProgramGroupPage=yes
+          PrivilegesRequired=lowest
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          LicenseFile=LICENSE
+          SetupIconFile=src\Layerlapse.App\Assets\layerlapse.ico
+          UninstallDisplayIcon={app}\Layerlapse.exe
+          UninstallDisplayName=Layerlapse
+          WizardStyle=modern
+          Compression=lzma2
+          SolidCompression=yes
+          OutputDir=out
+          OutputBaseFilename=Layerlapse-$env:VERSION-win-x64-setup
+
+          [Tasks]
+          Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+          [Files]
+          Source: "publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{autoprograms}\Layerlapse"; Filename: "{app}\Layerlapse.exe"
+          Name: "{autodesktop}\Layerlapse"; Filename: "{app}\Layerlapse.exe"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\Layerlapse.exe"; Description: "{cm:LaunchProgram,Layerlapse}"; Flags: nowait postinstall skipifsilent
+          "@
+          $iss = $iss -replace '(?m)^          ', ''
+          Set-Content -Path layerlapse.iss -Value $iss -Encoding UTF8
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Qp layerlapse.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+
+      - name: Windows installer smoke test
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem out -Filter *-setup.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER' -Wait
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\Layerlapse'
+          if (-not (Test-Path (Join-Path $dir 'Layerlapse.exe'))) { throw "Layerlapse.exe was not installed" }
+          $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Layerlapse.lnk'
+          if (-not (Test-Path $shortcut)) { throw "Start menu shortcut missing" }
+          $uninstaller = Get-ChildItem $dir -Filter 'unins*.exe' | Select-Object -First 1
+          Start-Process $uninstaller.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          Start-Sleep -Seconds 3
+          if (Test-Path (Join-Path $dir 'Layerlapse.exe')) { throw "Uninstall left Layerlapse.exe behind" }
+          Write-Host "Installed to $dir, Start menu shortcut created, uninstalled cleanly."
 
       - name: Linux tarball
         if: runner.os == 'Linux'
@@ -142,13 +209,13 @@ jobs:
           Terminal=false
           DESKTOP
           sed -i 's/^          //' "$name/layerlapse.desktop"
-          tar -czf "$name.tar.gz" "$name"
-          echo "ARTIFACT=$name.tar.gz" >> "$GITHUB_ENV"
+          mkdir -p out
+          tar -czf "out/$name.tar.gz" "$name"
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.rid }}
-          path: ${{ env.ARTIFACT }}
+          path: out/*
 
   release:
     needs: package

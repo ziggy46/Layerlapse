@@ -1,6 +1,4 @@
 using System.ComponentModel;
-using Avalonia;
-using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Layerlapse.Core.Setup;
@@ -116,9 +114,6 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    [ObservableProperty]
-    public partial bool IsLightTheme { get; set; }
-
     public async Task InitializeAsync()
     {
         await Settings.LoadAsync();
@@ -134,14 +129,6 @@ public partial class MainViewModel : ViewModelBase
 
     [RelayCommand]
     private void ShowPrinter() => CurrentPage = AppPage.Printer;
-
-    partial void OnIsLightThemeChanged(bool value)
-    {
-        if (Application.Current is { } app)
-        {
-            app.RequestedThemeVariant = value ? ThemeVariant.Light : ThemeVariant.Dark;
-        }
-    }
 
     private async void OnConnectionChanged(object? sender, PropertyChangedEventArgs e)
     {

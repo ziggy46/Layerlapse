@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Layerlapse.App.Themes;
 using Layerlapse.Core.Setup;
 
 namespace Layerlapse.App.ViewModels;
@@ -16,6 +17,23 @@ public partial class SettingsViewModel(
 
     /// <summary>Raised after any setting changes, so pages can pick it up.</summary>
     public event EventHandler? Changed;
+
+    /// <summary>Themes this system offers: Dark and Light everywhere, plus XP on Windows.</summary>
+    public IReadOnlyList<ThemeOption> Themes { get; } = ThemeManager.Available.Select(t => new ThemeOption(t)).ToList();
+
+    [ObservableProperty]
+    public partial ThemeOption? SelectedTheme { get; set; }
+
+    partial void OnSelectedThemeChanged(ThemeOption? value)
+    {
+        if (value is null || _loading)
+        {
+            return;
+        }
+
+        ThemeManager.Apply(value.Theme);
+        _ = SaveAsync(s => s with { Theme = value.Theme.ToString() });
+    }
 
     [ObservableProperty]
     public partial bool AllowDelete { get; set; }
@@ -47,6 +65,9 @@ public partial class SettingsViewModel(
     {
         var current = settings is null ? new AppSettings() : await settings.LoadAsync();
         _loading = true;
+        var theme = ThemeManager.FromName(current.Theme);
+        ThemeManager.Apply(theme);
+        SelectedTheme = Themes.FirstOrDefault(t => t.Theme == theme);
         AllowDelete = current.AllowDelete;
         AutoDownload = current.AutoDownloadEnabled;
         AutoDownloadFolder = current.AutoDownloadFolder;
@@ -165,4 +186,12 @@ public partial class SettingsViewModel(
         OnPropertyChanged(nameof(AutoDownloadText));
         Changed?.Invoke(this, EventArgs.Empty);
     }
+}
+
+/// <summary>One choice in the theme list.</summary>
+public sealed record ThemeOption(AppTheme Theme)
+{
+    public string Name => ThemeManager.DisplayName(Theme);
+
+    public override string ToString() => Name;
 }

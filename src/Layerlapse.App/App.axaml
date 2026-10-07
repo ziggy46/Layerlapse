@@ -24,5 +24,6 @@
         <ColorPaletteResources x:Key="Light" Accent="{StaticResource BrandAccentColor}" />
       </FluentTheme.Palettes>
     </FluentTheme>
+    <StyleInclude Source="avares://Layerlapse/Themes/XpStyles.axaml" />
   </Application.Styles>
 </Application>

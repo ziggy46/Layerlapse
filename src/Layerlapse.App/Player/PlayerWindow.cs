@@ -17,6 +17,7 @@ public sealed class PlayerWindow : Window
         MinWidth = 320;
         MinHeight = 240;
         Icon = AppIcon.Get();
+        Themes.ThemeManager.Track(this);
         Video = video;
 
         var openElsewhere = new Button { Content = "Open in default player", Margin = new Avalonia.Thickness(8) };

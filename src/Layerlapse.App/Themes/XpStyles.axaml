@@ -1,0 +1,196 @@
+<!--
+  Windows XP look (after XP.css, MIT, by Adam Hammad and Jordan Scales). Active only in windows with the "xp"
+  class, which ThemeManager sets when the XP theme is chosen (Windows only). Colours come from Theme.axaml.
+-->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Sidebar in every theme (set here, not on the element, so the XP theme can replace it below) -->
+  <Style Selector="Border.sidebar">
+    <Setter Property="Background" Value="{DynamicResource PanelBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,1,0" />
+  </Style>
+  <Style Selector="Border.sidebar TextBlock.secondary">
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+
+  <!-- Type: XP's Tahoma at 12 px -->
+  <Style Selector=":is(Window).xp">
+    <Setter Property="FontFamily" Value="Tahoma, Segoe UI, Verdana, sans-serif" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
+  <!-- Push buttons: rounded, light gradient, dark blue border, orange border on hover -->
+  <Style Selector=":is(Window).xp Button:not(.sidebar-printer):not(#PART_Button)">
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    <Setter Property="Padding" Value="12,3" />
+    <Setter Property="MinHeight" Value="23" />
+    <Setter Property="MinWidth" Value="75" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector=":is(Window).xp Button:not(.sidebar-printer):not(#PART_Button) /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpButtonBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpButtonBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="3" />
+  </Style>
+  <Style Selector=":is(Window).xp Button:not(.sidebar-printer):not(#PART_Button):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpButtonBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpButtonHoverBorderBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+  </Style>
+  <Style Selector=":is(Window).xp Button:not(.sidebar-printer):not(#PART_Button):pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpButtonPressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpButtonBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector=":is(Window).xp Button:not(.sidebar-printer):not(#PART_Button):disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpButtonDisabledBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpButtonDisabledBorderBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource XpDisabledTextBrush}" />
+  </Style>
+  <!-- XP had no green primary buttons: the main action is the default button, with a blue inner border -->
+  <Style Selector=":is(Window).xp Button:not(.sidebar-printer):not(#PART_Button).accent /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpButtonBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpButtonDefaultBorderBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+  </Style>
+  <Style Selector=":is(Window).xp Button:not(.sidebar-printer):not(#PART_Button).accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource XpButtonHoverBorderBrush}" />
+  </Style>
+  <Style Selector=":is(Window).xp Button:not(.sidebar-printer):not(#PART_Button).accent">
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+  </Style>
+
+  <!-- Text boxes: square, light blue-grey border, white field -->
+  <Style Selector=":is(Window).xp TextBox /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource XpInputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpInputBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="0" />
+  </Style>
+  <Style Selector=":is(Window).xp TextBox:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource XpInputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpInputBorderBrush}" />
+  </Style>
+  <Style Selector=":is(Window).xp TextBox:focus /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource XpInputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpSelectionBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector=":is(Window).xp TextBox">
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+  </Style>
+
+  <!-- Lists: XP blue selection with white text -->
+  <Style Selector=":is(Window).xp ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpSelectionBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource XpSelectionTextBrush}" />
+  </Style>
+  <Style Selector=":is(Window).xp ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpSelectionBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource XpSelectionTextBrush}" />
+  </Style>
+
+  <!-- Progress: white trough, rounded grey border, green bar -->
+  <Style Selector=":is(Window).xp ProgressBar">
+    <Setter Property="Foreground" Value="{DynamicResource XpProgressBrush}" />
+    <Setter Property="Background" Value="{DynamicResource XpInputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpProgressBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="MinHeight" Value="14" />
+  </Style>
+
+  <!-- Side pane: Explorer-style blue task pane -->
+  <Style Selector=":is(Window).xp Border.sidebar">
+    <Setter Property="Background" Value="{DynamicResource XpTaskPaneBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector=":is(Window).xp Border.sidebar TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource XpTaskPaneTextBrush}" />
+  </Style>
+  <Style Selector=":is(Window).xp Border.sidebar TextBlock.secondary">
+    <Setter Property="Foreground" Value="{DynamicResource XpTaskPaneSecondaryTextBrush}" />
+  </Style>
+  <!-- The printer entry in the side pane is a link-like button, not an XP push button -->
+  <Style Selector=":is(Window).xp Button.sidebar-printer /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector=":is(Window).xp Button.sidebar-printer:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector=":is(Window).xp Button.sidebar-printer:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector=":is(Window).xp Border.sidebar ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource XpTaskPaneTextBrush}" />
+  </Style>
+  <Style Selector=":is(Window).xp Border.sidebar ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpTaskPaneItemBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource XpTaskPaneItemTextBrush}" />
+  </Style>
+  <Style Selector=":is(Window).xp Border.sidebar ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpTaskPaneItemBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource XpTaskPaneItemTextBrush}" />
+  </Style>
+  <Style Selector=":is(Window).xp Border.sidebar ListBoxItem:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Opacity" Value="0.6" />
+  </Style>
+
+  <!-- XP-style title bar (drawn by MainWindow when the XP theme is active on Windows) -->
+  <Style Selector="Border.xp-titlebar">
+    <Setter Property="Background" Value="{DynamicResource XpTitleBrush}" />
+    <Setter Property="CornerRadius" Value="8,8,0,0" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Padding" Value="6,0,4,0" />
+  </Style>
+  <Style Selector="TextBlock.xp-title">
+    <Setter Property="Foreground" Value="{DynamicResource XpTitleTextBrush}" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontFamily" Value="Trebuchet MS, Tahoma, Segoe UI, sans-serif" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.xp-caption">
+    <Setter Property="Width" Value="21" />
+    <Setter Property="Height" Value="21" />
+    <Setter Property="MinWidth" Value="21" />
+    <Setter Property="MinHeight" Value="21" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Margin" Value="1,0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.xp-caption /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpCaptionButtonBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpCaptionButtonBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="3" />
+  </Style>
+  <Style Selector="Button.xp-caption:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpCaptionButtonHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpCaptionButtonBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Button.xp-caption:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpCaptionButtonBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource XpCaptionButtonBorderBrush}" />
+  </Style>
+  <Style Selector="Button.xp-close /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpCloseButtonBrush}" />
+  </Style>
+  <Style Selector="Button.xp-close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource XpCloseButtonHoverBrush}" />
+  </Style>
+  <Style Selector="Button.xp-caption Path">
+    <Setter Property="Fill" Value="{DynamicResource XpCaptionGlyphBrush}" />
+    <Setter Property="Stretch" Value="None" />
+  </Style>
+</Styles>

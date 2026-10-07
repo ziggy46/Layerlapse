@@ -16,9 +16,13 @@
 
   Neutrals are approximations until sampled from a real Bambu Studio screenshot.
   White text on accent is ~3:1: only use it for bold labels of 14 px or more.
+
+  The XP variant (Windows only) recreates the Windows XP look after XP.css (MIT). It is a deliberate exception
+  to the flat, no-gradient rule for the default themes, and adds the Xp* brushes used by XpStyles.axaml.
 -->
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:themes="using:Layerlapse.App.Themes">
 
   <!-- Same green in both variants. App.axaml feeds it to FluentTheme's palettes so built-in
        controls (selection, toggles, progress) use it instead of the OS accent colour. -->
@@ -50,6 +54,104 @@
       <Color x:Key="TextColor">#262E30</Color>
       <Color x:Key="TextSecondaryColor">#6B6B6B</Color>
       <Color x:Key="DangerColor">#D13438</Color>
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="{x:Static themes:ThemeManager.XpVariant}">
+      <Color x:Key="AccentColor">#316AC5</Color>
+      <Color x:Key="AccentHoverColor">#4A84D8</Color>
+      <Color x:Key="AccentPressedColor">#24529C</Color>
+      <Color x:Key="BackgroundColor">#ECE9D8</Color>
+      <Color x:Key="PanelColor">#ECE9D8</Color>
+      <Color x:Key="CardColor">#FFFFFF</Color>
+      <Color x:Key="LineColor">#ACA899</Color>
+      <Color x:Key="TextColor">#000000</Color>
+      <Color x:Key="TextSecondaryColor">#555555</Color>
+      <Color x:Key="DangerColor">#C1272D</Color>
+
+      <!-- Fluent's palettes only cover Light and Dark, so the XP accent is set here for built-in controls. -->
+      <Color x:Key="SystemAccentColor">#316AC5</Color>
+      <Color x:Key="SystemAccentColorLight1">#4A84D8</Color>
+      <Color x:Key="SystemAccentColorLight2">#7BA2E7</Color>
+      <Color x:Key="SystemAccentColorLight3">#B5CBF0</Color>
+      <Color x:Key="SystemAccentColorDark1">#24529C</Color>
+      <Color x:Key="SystemAccentColorDark2">#1B3F78</Color>
+      <Color x:Key="SystemAccentColorDark3">#122B54</Color>
+
+      <!-- Title bar (active window) -->
+      <LinearGradientBrush x:Key="XpTitleBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Offset="0" Color="#0997FF" />
+        <GradientStop Offset="0.08" Color="#0053EE" />
+        <GradientStop Offset="0.4" Color="#0050EE" />
+        <GradientStop Offset="0.88" Color="#0066FF" />
+        <GradientStop Offset="0.93" Color="#0066FF" />
+        <GradientStop Offset="0.95" Color="#005BFF" />
+        <GradientStop Offset="0.96" Color="#003DD7" />
+        <GradientStop Offset="1" Color="#003DD7" />
+      </LinearGradientBrush>
+      <SolidColorBrush x:Key="XpTitleTextBrush" Color="#FFFFFF" />
+      <Color x:Key="XpTitleShadowColor">#0F1089</Color>
+      <LinearGradientBrush x:Key="XpCaptionButtonBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#5B9AFF" />
+        <GradientStop Offset="0.5" Color="#1C64F5" />
+        <GradientStop Offset="1" Color="#0A47D1" />
+      </LinearGradientBrush>
+      <LinearGradientBrush x:Key="XpCaptionButtonHoverBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#8CB8FF" />
+        <GradientStop Offset="0.5" Color="#3D80FF" />
+        <GradientStop Offset="1" Color="#1A5CE6" />
+      </LinearGradientBrush>
+      <LinearGradientBrush x:Key="XpCloseButtonBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#F0A08A" />
+        <GradientStop Offset="0.45" Color="#E2502A" />
+        <GradientStop Offset="1" Color="#C2350F" />
+      </LinearGradientBrush>
+      <LinearGradientBrush x:Key="XpCloseButtonHoverBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#FBC3B1" />
+        <GradientStop Offset="0.45" Color="#F26B44" />
+        <GradientStop Offset="1" Color="#D9461F" />
+      </LinearGradientBrush>
+      <SolidColorBrush x:Key="XpCaptionButtonBorderBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="XpCaptionGlyphBrush" Color="#FFFFFF" />
+
+      <!-- Push buttons -->
+      <LinearGradientBrush x:Key="XpButtonBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Offset="0" Color="#FFFFFF" />
+        <GradientStop Offset="0.85" Color="#ECEBE6" />
+        <GradientStop Offset="1" Color="#D6D0C5" />
+      </LinearGradientBrush>
+      <LinearGradientBrush x:Key="XpButtonPressedBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Offset="0" Color="#CDCAC3" />
+        <GradientStop Offset="0.15" Color="#E3E3DB" />
+        <GradientStop Offset="1" Color="#F2F1EA" />
+      </LinearGradientBrush>
+      <SolidColorBrush x:Key="XpButtonBorderBrush" Color="#003C74" />
+      <SolidColorBrush x:Key="XpButtonHoverBorderBrush" Color="#E5A01A" />
+      <SolidColorBrush x:Key="XpButtonDefaultBorderBrush" Color="#316AC5" />
+      <SolidColorBrush x:Key="XpButtonDisabledBorderBrush" Color="#C9C7BA" />
+      <SolidColorBrush x:Key="XpButtonDisabledBrush" Color="#F5F4EA" />
+      <SolidColorBrush x:Key="XpDisabledTextBrush" Color="#ACA899" />
+
+      <!-- Inputs, selection, progress -->
+      <SolidColorBrush x:Key="XpInputBorderBrush" Color="#7F9DB9" />
+      <SolidColorBrush x:Key="XpInputBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="XpSelectionBrush" Color="#316AC5" />
+      <SolidColorBrush x:Key="XpSelectionTextBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="XpProgressBorderBrush" Color="#686868" />
+      <LinearGradientBrush x:Key="XpProgressBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Offset="0" Color="#ACEDAD" />
+        <GradientStop Offset="0.5" Color="#2BC22B" />
+        <GradientStop Offset="1" Color="#ACEDAD" />
+      </LinearGradientBrush>
+
+      <!-- Side task pane (like Explorer's left pane) -->
+      <LinearGradientBrush x:Key="XpTaskPaneBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Offset="0" Color="#7BA2E7" />
+        <GradientStop Offset="1" Color="#6375D6" />
+      </LinearGradientBrush>
+      <SolidColorBrush x:Key="XpTaskPaneTextBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="XpTaskPaneSecondaryTextBrush" Color="#DCE6FB" />
+      <SolidColorBrush x:Key="XpTaskPaneItemBrush" Color="#D6DFF7" />
+      <SolidColorBrush x:Key="XpTaskPaneItemTextBrush" Color="#215DC6" />
     </ResourceDictionary>
 
   </ResourceDictionary.ThemeDictionaries>

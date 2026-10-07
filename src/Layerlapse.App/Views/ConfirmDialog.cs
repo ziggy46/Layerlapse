@@ -19,6 +19,7 @@ public sealed class ConfirmDialog : Window
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Icon = AppIcon.Get();
+        Themes.ThemeManager.Track(this);
         this[!BackgroundProperty] = new DynamicResourceExtension("CardBrush");
 
         var cancel = new Button { Content = "Cancel", IsDefault = true, IsCancel = true };

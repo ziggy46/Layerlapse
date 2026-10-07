@@ -5,13 +5,15 @@ namespace Layerlapse.Core.Setup;
 /// <summary>Small, non-secret preferences.</summary>
 /// <param name="AllowDelete">Deleting timelapses from the printer is off unless the user turns it on.</param>
 /// <param name="AutoDownloadFolder">Where new timelapses are saved automatically; null when auto-download is off.</param>
+/// <param name="Theme">Chosen look ("Dark", "Light", or "XP" on Windows); null means the default, Dark.</param>
 /// <param name="AutoDownloadSince">Only timelapses finished after this (UTC) are auto-downloaded, so turning the
 /// feature on does not fetch every old timelapse.</param>
 public sealed record AppSettings(
     string? LastDownloadFolder = null,
     bool AllowDelete = false,
     string? AutoDownloadFolder = null,
-    DateTime? AutoDownloadSince = null)
+    DateTime? AutoDownloadSince = null,
+    string? Theme = null)
 {
     public bool AutoDownloadEnabled => AutoDownloadFolder is not null && AutoDownloadSince is not null;
 }

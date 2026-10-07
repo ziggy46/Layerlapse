@@ -21,6 +21,8 @@ lets you browse, play and download its timelapses and models, without a phone or
   stopped, and files already in the folder are skipped.
 - **Extras:** storage used on the printer, auto-download of new timelapses while the app is open, several
   saved printers, and an update check that links to the release page.
+- **Themes:** Dark (default) and Light everywhere, plus a **Windows XP** theme on Windows, with its own blue
+  title bar (look inspired by [XP.css](https://github.com/botoxparty/XP.css), MIT).
 
 Layerlapse is read-only by default. Deleting is limited to timelapses, off unless you turn it on in Settings,
 and asks for confirmation each time. It never touches models, certificates or other files on the printer.
@@ -36,7 +38,12 @@ and asks for confirmation each time. It never touches models, certificates or ot
 ## Install
 
 Download the installer for your system from the
-[releases page](https://github.com/ziggy46/Layerlapse/releases).
+[releases page](https://github.com/ziggy46/Layerlapse/releases):
+
+- **Windows:** `Layerlapse-<version>-win-x64-setup.exe` installs for your user only (no administrator rights),
+  adds a Start menu entry and an uninstaller. A portable `.zip` is also available.
+- **macOS:** the `.dmg` for Apple Silicon (`osx-arm64`) or Intel (`osx-x64`).
+- **Linux:** the `.tar.gz`; extract it and run `Layerlapse`.
 
 Builds are not signed yet:
 - **macOS:** the first time, right-click the app and choose Open. macOS asks for Keychain access after each

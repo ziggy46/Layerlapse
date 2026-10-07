@@ -33,6 +33,10 @@ public partial class App : Application
                 discovery);
             var player = new BuiltInVideoPlayer(() => desktop.MainWindow);
             var settings = JsonSettingsStore.CreateDefault();
+
+            // Apply the saved theme before the first window appears (no flash of the default theme).
+            var saved = Task.Run(() => settings.LoadAsync()).GetAwaiter().GetResult();
+            Themes.ThemeManager.Apply(Themes.ThemeManager.FromName(saved.Theme));
             Func<string, string?, Task<string?>> pickFolder = (title, start) => PickFolderAsync(desktop.MainWindow, title, start);
             Task<bool> Ask(string title, string message, string confirm, bool destructive) =>
                 desktop.MainWindow is { } owner ? ConfirmDialog.AskAsync(owner, title, message, confirm, destructive) : Task.FromResult(false);
