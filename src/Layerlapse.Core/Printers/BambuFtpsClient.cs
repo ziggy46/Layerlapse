@@ -10,8 +10,8 @@ namespace Layerlapse.Core.Printers;
 /// Implicit FTPS client for Bambu Lab printers. Read-only except <see cref="DeleteAsync"/>, which is limited to
 /// timelapse files by <see cref="DeletePolicy"/>.
 ///
-/// The printer runs vsftpd with require_ssl_reuse: every data connection must resume the control
-/// connection's TLS session. .NET's SslStream (and so FluentFTP) cannot do that on macOS or Linux,
+/// The X1 runs vsftpd with require_ssl_reuse: every data connection must resume the control connection's TLS
+/// session (other models may accept a fresh one). .NET's SslStream (and so FluentFTP) cannot resume on macOS or Linux,
 /// so TLS here is BouncyCastle's managed implementation and the FTP layer is the minimal subset
 /// the app needs. Only read commands are ever sent.
 /// </summary>
@@ -192,13 +192,12 @@ public sealed partial class BambuFtpsClient : IPrinterClient
             throw new FtpReplyException(command.Split(' ')[0], preliminary);
         }
 
+        // Offer the control connection's session. The X1 requires the data connection to resume it (and refuses
+        // the transfer otherwise); the A1 has been seen to start a fresh session instead, which is just as safe,
+        // because a full handshake checks the printer's certificate against the pinned fingerprint again.
         var dataTls = new TlsClientProtocol(dataSocket.GetStream());
         var dataClient = new PinnedTlsClient(c => c.Fingerprint == CertificateFingerprint, _session);
         await Task.Run(() => dataTls.Connect(dataClient), cancellationToken);
-        if (!dataClient.Resumed)
-        {
-            throw new IOException("Data connection did not resume the control TLS session.");
-        }
 
         var buffer = new byte[81920];
         var total = restartAt;

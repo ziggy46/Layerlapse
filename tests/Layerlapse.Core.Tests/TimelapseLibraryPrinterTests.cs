@@ -63,7 +63,9 @@ public sealed class TimelapseLibraryPrinterTests(ITestOutputHelper output) : IDi
     {
         await using var session = Session();
         var library = Library(session);
-        var video = (await library.RefreshAsync()).Timelapses.Single(t => t.Name == "video_2026-10-03_17-47-45.mp4");
+        // The smallest timelapse on the printer (a fixed file name breaks when that print is deleted).
+        var video = (await library.RefreshAsync()).Timelapses.Where(t => t.Size > 0).MinBy(t => t.Size)
+            ?? throw new InvalidOperationException("The printer has no timelapses.");
 
         var path = await library.GetVideoAsync(video);
 

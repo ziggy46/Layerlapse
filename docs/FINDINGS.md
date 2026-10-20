@@ -542,3 +542,13 @@ theme. The title bar, blue frame and resize grips moved out of `MainWindow.axaml
 the main window, the player window and the confirmation dialog all use. A Windows runner with the XP theme
 saved showed the player in XP's frame, with the video still drawing inside the transparent, frameless window
 (5.9 s, then 35.4 s after a seek to 30 s).
+
+## 2026-10-19: A1 refused at "Data connection did not resume the control TLS session"
+
+A friend's A1 (owner's report, same error on macOS and Windows) logged in but failed the first listing with
+our own check: the data connection's TLS handshake succeeded without resuming the control connection's
+session. Either the A1's FTP server does not require session reuse, or it resumes in a way the session-ID
+comparison did not recognise. The check was a diagnostic, not a safeguard: a full handshake verifies the
+printer's certificate against the pinned fingerprint again, and the X1 refuses non-resumed transfers itself
+(522). It was removed; the data connection still offers the control session first. Checked against the X1
+(listing, downloads and resumed downloads pass). Not yet checked on an A1, which may differ further along.

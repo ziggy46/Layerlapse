@@ -8,9 +8,9 @@ using Org.BouncyCastle.Security;
 namespace Layerlapse.Core.Printers;
 
 /// <summary>
-/// TLS 1.2 client for the printer's FTPS server (vsftpd with require_ssl_reuse).
-/// The control connection establishes a session; each data connection must resume that same
-/// session or the server answers "522 SSL connection failed: session reuse required".
+/// TLS 1.2 client for the printer's FTPS server. The control connection establishes a session and each data
+/// connection offers it again: the X1's vsftpd (require_ssl_reuse) answers "522 SSL connection failed: session
+/// reuse required" without it, while other models may start a fresh session, which is checked like the first.
 /// The printer's certificate has no trusted chain, so it is checked by SHA-256 fingerprint instead.
 /// </summary>
 internal sealed class PinnedTlsClient : DefaultTlsClient
@@ -28,9 +28,6 @@ internal sealed class PinnedTlsClient : DefaultTlsClient
     /// <summary>The negotiated session, available once the handshake completes.</summary>
     public TlsSession? Session { get; private set; }
 
-    /// <summary>Whether the handshake resumed <c>sessionToResume</c> rather than starting a new session.</summary>
-    public bool Resumed { get; private set; }
-
     protected override ProtocolVersion[] GetSupportedVersions() => ProtocolVersion.TLSv12.Only();
 
     public override TlsSession? GetSessionToResume() => _sessionToResume;
@@ -41,9 +38,6 @@ internal sealed class PinnedTlsClient : DefaultTlsClient
     {
         base.NotifyHandshakeComplete();
         Session = m_context.Session;
-        Resumed = _sessionToResume is not null
-            && Session is not null
-            && _sessionToResume.SessionID.AsSpan().SequenceEqual(Session.SessionID);
     }
 
     public static string Fingerprint(byte[] derCertificate) => Convert.ToHexString(SHA256.HashData(derCertificate));
